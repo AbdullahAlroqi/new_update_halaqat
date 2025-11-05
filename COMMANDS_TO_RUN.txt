@@ -1,0 +1,148 @@
+═══════════════════════════════════════════════════════════════
+  📝 الأوامر الجاهزة للتنفيذ
+═══════════════════════════════════════════════════════════════
+
+🔹 الجزء 1: الرفع على GitHub
+═══════════════════════════════════════════════════════════════
+
+الخطوة 1: أنشئ مستودع على GitHub
+   1. اذهب إلى: https://github.com/new
+   2. اسم المستودع: halaqat-management-system
+   3. اختر Public أو Private
+   4. لا تضف README (موجود بالفعل)
+   5. اضغط Create repository
+
+الخطوة 2: نفذ هذه الأوامر في PowerShell
+   (في مجلد المشروع هذا)
+
+git init
+git add .
+git commit -m "نظام إدارة معلمي الحلقات - الإصدار 2.0"
+git branch -M main
+git remote add origin https://github.com/YOUR_USERNAME/halaqat-management-system.git
+git push -u origin main
+
+⚠️ استبدل YOUR_USERNAME باسم المستخدم على GitHub
+
+═══════════════════════════════════════════════════════════════
+
+🔹 الجزء 2: النشر على PythonAnywhere
+═══════════════════════════════════════════════════════════════
+
+الخطوة 1: التسجيل
+   1. اذهب إلى: https://www.pythonanywhere.com/registration/register/beginner/
+   2. سجّل حساب مجاني
+   3. فعّل البريد الإلكتروني
+
+الخطوة 2: افتح Bash Console
+   Dashboard → Consoles → Bash
+
+الخطوة 3: نفذ الأوامر التالية:
+
+git clone https://github.com/YOUR_USERNAME/halaqat-management-system.git
+cd halaqat-management-system
+mkvirtualenv --python=/usr/bin/python3.10 halaqat-env
+pip install -r requirements.txt
+python setup.py
+
+الخطوة 4: إنشاء Web App
+   1. Dashboard → Web → Add a new web app
+   2. Next → Manual configuration → Python 3.10
+
+الخطوة 5: تعديل WSGI
+   1. في صفحة Web، اضغط WSGI configuration file
+   2. احذف كل المحتوى واستبدله بـ:
+
+───────────────────────────────────────────────
+import sys
+import os
+
+# استبدل YOUR_USERNAME باسم المستخدم
+project_home = '/home/YOUR_USERNAME/halaqat-management-system'
+if project_home not in sys.path:
+    sys.path.insert(0, project_home)
+
+# ضع مفتاح سري قوي هنا
+os.environ['SECRET_KEY'] = 'ضع-مفتاح-سري-قوي-هنا-123456'
+os.environ['FLASK_ENV'] = 'production'
+
+from app import app as application
+───────────────────────────────────────────────
+
+الخطوة 6: تعيين Virtualenv
+   في صفحة Web، قسم Virtualenv:
+   /home/YOUR_USERNAME/.virtualenvs/halaqat-env
+
+الخطوة 7: إضافة Static Files
+   في صفحة Web، قسم Static files:
+   
+   URL: /static/
+   Directory: /home/YOUR_USERNAME/halaqat-management-system/static/
+   
+   (اضغط Enter ثم أضف آخر:)
+   
+   URL: /uploads/
+   Directory: /home/YOUR_USERNAME/halaqat-management-system/uploads/
+
+الخطوة 8: إعادة التحميل
+   اضغط الزر الأخضر "Reload YOUR_USERNAME.pythonanywhere.com"
+
+الخطوة 9: افتح الموقع
+   https://YOUR_USERNAME.pythonanywhere.com
+
+═══════════════════════════════════════════════════════════════
+
+🔒 خطوات الأمان (مهمة جداً!)
+═══════════════════════════════════════════════════════════════
+
+في Bash Console على PythonAnywhere:
+
+1. تغيير كلمة مرور المدير:
+   cd ~/halaqat-management-system
+   python change_admin_password.py
+
+2. تحديث صلاحيات الملفات:
+   chmod 644 halaqat.db
+   chmod -R 755 static/
+   chmod -R 755 uploads/
+
+═══════════════════════════════════════════════════════════════
+
+✅ معلومات تسجيل الدخول الافتراضية
+═══════════════════════════════════════════════════════════════
+
+رقم الهوية: 1000000000
+كلمة المرور: admin123
+
+⚠️ غيّر كلمة المرور فوراً بعد أول تسجيل دخول!
+
+═══════════════════════════════════════════════════════════════
+
+🔄 للتحديثات اللاحقة
+═══════════════════════════════════════════════════════════════
+
+على GitHub (من الكمبيوتر):
+git add .
+git commit -m "وصف التحديث"
+git push
+
+على PythonAnywhere (من Bash Console):
+cd ~/halaqat-management-system
+git pull origin main
+# ثم اضغط Reload في تبويب Web
+
+═══════════════════════════════════════════════════════════════
+
+📞 تحتاج مساعدة إضافية؟
+═══════════════════════════════════════════════════════════════
+
+افتح الملفات التالية لمزيد من التفاصيل:
+
+• GITHUB_PYTHONANYWHERE_STEPS.md - دليل شامل مفصل
+• DEPLOY_GUIDE.md - مرجع سريع
+• PYTHONANYWHERE_DEPLOYMENT.md - تفاصيل متقدمة
+
+═══════════════════════════════════════════════════════════════
+
+🎉 بالتوفيق!
+═══════════════════════════════════════════════════════════════
