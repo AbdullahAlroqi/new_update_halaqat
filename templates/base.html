@@ -449,6 +449,24 @@
             }
             return outputArray;
         }
+
+        // دالة إلغاء الاشتراك عند تسجيل الخروج
+        window.unsubscribeUser = function () {
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.ready.then(function (registration) {
+                    registration.pushManager.getSubscription().then(function (subscription) {
+                        if (subscription) {
+                            // إلغاء الاشتراك محلياً
+                            subscription.unsubscribe().then(function (successful) {
+                                console.log('Unsubscribed successfully');
+                            }).catch(function (e) {
+                                console.log('Unsubscribe failed', e);
+                            });
+                        }
+                    });
+                });
+            }
+        };
     </script>
     {% endif %}
 

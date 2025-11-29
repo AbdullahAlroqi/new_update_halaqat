@@ -198,9 +198,22 @@ def subscribe():
         
         # إذا كان مسجل دخول، استخدم user_id
         if current_user.is_authenticated:
-            existing = PushSubscription.query.filter_by(
-                user_id=current_user.id
-            ).first()
+            # البحث عن اشتراك مطابق تماماً (لنفس الجهاز/المتصفح)
+            endpoint = subscription_json.get('endpoint', '')
+            existing = None
+            
+            if endpoint:
+                existing = PushSubscription.query.filter(
+                    PushSubscription.user_id == current_user.id,
+                    PushSubscription.subscription_json.like(f'%{endpoint}%')
+                ).first()
+            
+            # إذا لم نجد تطابق دقيق، نبحث عن النص الكامل
+            if not existing:
+                existing = PushSubscription.query.filter_by(
+                    user_id=current_user.id,
+                    subscription_json=json.dumps(subscription_json)
+                ).first()
             
             if existing:
                 existing.subscription_json = json.dumps(subscription_json)
@@ -216,7 +229,8 @@ def subscribe():
         # إذا لم يكن مسجل دخول، استخدم national_id
         elif national_id:
             existing = PushSubscription.query.filter_by(
-                national_id=national_id
+                national_id=national_id,
+                subscription_json=json.dumps(subscription_json)
             ).first()
             
             if existing:
