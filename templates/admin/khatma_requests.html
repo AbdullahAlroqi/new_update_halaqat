@@ -1,0 +1,219 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card-islamic">
+                <div class="card-header">
+                    <i class="fas fa-book-quran ms-2"></i>
+                    إدارة طلبات الختمة
+                </div>
+                <div class="card-body">
+                    <!-- الفلاتر -->
+                    <form method="GET" class="mb-4">
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <label class="form-label">الحالة</label>
+                                <select name="status" class="form-select" onchange="this.form.submit()">
+                                    <option value="">جميع الحالات</option>
+                                    <option value="قيد الانتظار" {% if request.args.get('status')=='قيد الانتظار'
+                                        %}selected{% endif %}>قيد الانتظار</option>
+                                    <option value="مقبول" {% if request.args.get('status')=='مقبول' %}selected{% endif
+                                        %}>مقبول</option>
+                                    <option value="مرفوض" {% if request.args.get('status')=='مرفوض' %}selected{% endif
+                                        %}>مرفوض</option>
+                                </select>
+                            </div>
+                        </div>
+                    </form>
+
+                    <!-- الجدول -->
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>اسم الموظف</th>
+                                    <th>اسم الطالب</th>
+                                    <th>تاريخ الختمة</th>
+                                    <th>الرواية</th>
+                                    <th>معلومات إضافية</th>
+                                    <th>الحالة</th>
+                                    <th>تاريخ التقديم</th>
+                                    <th>الإجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if requests %}
+                                {% for req in requests %}
+                                <tr>
+                                    <td>{{ req.id }}</td>
+                                    <td>{{ req.employee.name }}</td>
+                                    <td>{{ req.student_name }}</td>
+                                    <td>
+                                        {{ req.khatma_date.strftime('%Y/%m/%d') }}
+                                        {% if req.original_date and req.original_date != req.khatma_date %}
+                                        <br><small class="text-muted">(الأصلي: {{ req.original_date.strftime('%Y/%m/%d')
+                                            }})</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ req.riwaya_type }}</td>
+                                    <td>{{ req.additional_info if req.additional_info else '-' }}</td>
+                                    <td>
+                                        {% if req.status == 'قيد الانتظار' %}
+                                        <span class="badge bg-warning">{{ req.status }}</span>
+                                        {% elif req.status == 'مقبول' %}
+                                        <span class="badge bg-success">{{ req.status }}</span>
+                                        {% else %}
+                                        <span class="badge bg-danger">{{ req.status }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ req.created_at.strftime('%Y/%m/%d %H:%M') }}</td>
+                                    <td>
+                                        {% if req.status == 'قيد الانتظار' %}
+                                        <button class="btn btn-sm btn-success" onclick="approveRequest({{ req.id }})">
+                                            <i class="fas fa-check"></i> قبول
+                                        </button>
+                                        <button class="btn btn-sm btn-danger" onclick="rejectRequest({{ req.id }})">
+                                            <i class="fas fa-times"></i> رفض
+                                        </button>
+                                        {% else %}
+                                        <span class="text-muted">تمت المراجعة</span>
+                                        {% if req.reviewer %}
+                                        <br><small>بواسطة: {{ req.reviewer.name }}</small>
+                                        {% endif %}
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                                {% else %}
+                                <tr>
+                                    <td colspan="9" class="text-center">لا توجد طلبات</td>
+                                </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal للموافقة -->
+<div class="modal fade" id="approveModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">الموافقة على طلب الختمة</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="approveForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">تاريخ الختمة الجديد (اختياري)</label>
+                        <input type="date" class="form-control" name="new_date" id="newDate">
+                        <small class="text-muted">اترك فارغاً للإبقاء على التاريخ الأصلي</small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">ملاحظات (اختياري)</label>
+                        <textarea class="form-control" name="notes" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-check"></i> قبول الطلب
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal للرفض -->
+<div class="modal fade" id="rejectModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">رفض طلب الختمة</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="rejectForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">سبب الرفض</label>
+                        <textarea class="form-control" name="notes" rows="3" required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-times"></i> رفض الطلب
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentRequestId = null;
+
+    function approveRequest(requestId) {
+        currentRequestId = requestId;
+        document.getElementById('newDate').value = '';
+        const modal = new bootstrap.Modal(document.getElementById('approveModal'));
+        modal.show();
+    }
+
+    function rejectRequest(requestId) {
+        currentRequestId = requestId;
+        const modal = new bootstrap.Modal(document.getElementById('rejectModal'));
+        modal.show();
+    }
+
+    document.getElementById('approveForm').addEventListener('submit', function (e) {
+        e.preventDefault();
+        const formData = new FormData(this);
+
+        fetch(`/admin/khatma-request/${currentRequestId}/approve`, {
+            method: 'POST',
+            body: formData
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('حدث خطأ: ' + (data.message || 'غير معروف'));
+                }
+            })
+            .catch(error => {
+                alert('حدث خطأ في الاتصال');
+            });
+    });
+
+    document.getElementById('rejectForm').addEventListener('submit', function (e) {
+        e.preventDefault();
+        const formData = new FormData(this);
+
+        fetch(`/admin/khatma-request/${currentRequestId}/reject`, {
+            method: 'POST',
+            body: formData
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('حدث خطأ: ' + (data.message || 'غير معروف'));
+                }
+            })
+            .catch(error => {
+                alert('حدث خطأ في الاتصال');
+            });
+    });
+</script>
+{% endblock %}

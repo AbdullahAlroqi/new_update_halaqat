@@ -255,3 +255,45 @@ class Certificate(db.Model):
     
     def __repr__(self):
         return f'<Certificate {self.student_name} - {self.completion_type}>'
+
+# نموذج طلبات الختمة
+class KhatmaRequest(db.Model):
+    __tablename__ = 'khatma_requests'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    employee_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    student_name = db.Column(db.String(100), nullable=False)
+    khatma_date = db.Column(db.Date, nullable=False)
+    original_date = db.Column(db.Date)  # التاريخ الأصلي في حالة تغيير التاريخ
+    riwaya_type = db.Column(db.String(100), nullable=False)  # نوع الرواية
+    additional_info = db.Column(db.Text)  # معلومات إضافية
+    status = db.Column(db.String(20), default=Status.PENDING)
+    reviewed_by = db.Column(db.Integer, db.ForeignKey('users.id'))
+    reviewed_at = db.Column(db.DateTime)
+    review_notes = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # العلاقات
+    employee = db.relationship('User', foreign_keys=[employee_id], backref='khatma_requests')
+    reviewer = db.relationship('User', foreign_keys=[reviewed_by])
+    
+    def __repr__(self):
+        return f'<KhatmaRequest {self.student_name} - {self.khatma_date}>'
+
+# نموذج اشتراكات الإشعارات Push
+class PushSubscription(db.Model):
+    __tablename__ = 'push_subscriptions'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)  # nullable for non-logged users
+    national_id = db.Column(db.String(10), nullable=True)  # لحفظ اشتراكات الموظفين بدون تسجيل دخول
+    subscription_json = db.Column(db.Text, nullable=False)  # JSON data for the subscription
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # العلاقات
+    user = db.relationship('User', backref='push_subscriptions')
+    
+    def __repr__(self):
+        return f'<PushSubscription User:{self.user_id} NationalID:{self.national_id}>'

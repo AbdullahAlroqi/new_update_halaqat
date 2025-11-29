@@ -1,71 +1,107 @@
-const CACHE_NAME = 'halaqat-cache-v1';
+// Service Worker for PWA and Push Notifications
+const CACHE_NAME = 'halaqat-v1';
 const urlsToCache = [
-  '/',
-  '/static/css/style.css',
-  '/static/js/script.js',
-  '/static/images/logo.png',
-  'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css',
-  'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js',
-  'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css'
+    '/',
+    '/static/css/style.css',
+    '/static/images/logo.png'
 ];
 
 // تثبيت Service Worker
 self.addEventListener('install', event => {
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => {
-        console.log('Opened cache');
-        return cache.addAll(urlsToCache);
-      })
-  );
+    event.waitUntil(
+        caches.open(CACHE_NAME)
+            .then(cache => cache.addAll(urlsToCache))
+    );
 });
 
 // تفعيل Service Worker
 self.addEventListener('activate', event => {
-  event.waitUntil(
-    caches.keys().then(cacheNames => {
-      return Promise.all(
-        cacheNames.map(cacheName => {
-          if (cacheName !== CACHE_NAME) {
-            console.log('Deleting old cache:', cacheName);
-            return caches.delete(cacheName);
-          }
+    event.waitUntil(
+        caches.keys().then(cacheNames => {
+            return Promise.all(
+                cacheNames.map(cacheName => {
+                    if (cacheName !== CACHE_NAME) {
+                        return caches.delete(cacheName);
+                    }
+                })
+            );
         })
-      );
-    })
-  );
+    );
 });
 
-// استجابة للطلبات
+// التعامل مع الطلبات
 self.addEventListener('fetch', event => {
-  event.respondWith(
-    caches.match(event.request)
-      .then(response => {
-        // إرجاع النسخة المحفوظة إذا وجدت
-        if (response) {
-          return response;
+    event.respondWith(
+        caches.match(event.request)
+            .then(response => {
+                return response || fetch(event.request);
+            })
+    );
+});
+
+// استقبال الإشعارات Push
+self.addEventListener('push', event => {
+    console.log('Push notification received:', event);
+    
+    let data = {
+        title: 'إشعار جديد',
+        body: 'لديك إشعار جديد',
+        icon: '/static/images/logo.png',
+        badge: '/static/images/badge.png',
+        url: '/'
+    };
+    
+    if (event.data) {
+        try {
+            data = event.data.json();
+        } catch (e) {
+            console.error('Error parsing notification data:', e);
         }
-        
-        // محاولة جلب الطلب من الشبكة
-        return fetch(event.request).then(response => {
-          // التحقق من صحة الاستجابة
-          if (!response || response.status !== 200 || response.type !== 'basic') {
-            return response;
-          }
-          
-          // حفظ نسخة من الاستجابة في الذاكرة المؤقتة
-          const responseToCache = response.clone();
-          
-          caches.open(CACHE_NAME).then(cache => {
-            cache.put(event.request, responseToCache);
-          });
-          
-          return response;
-        });
-      })
-      .catch(() => {
-        // إرجاع صفحة offline إذا فشل الطلب
-        return caches.match('/offline.html');
-      })
-  );
+    }
+    
+    const options = {
+        body: data.body,
+        icon: data.icon || '/static/images/logo.png',
+        badge: data.badge || '/static/images/badge.png',
+        data: {
+            url: data.url || '/'
+        },
+        vibrate: [200, 100, 200],
+        tag: 'halaqat-notification',
+        requireInteraction: false,
+        dir: 'rtl', // للغة العربية
+        lang: 'ar'
+    };
+    
+    event.waitUntil(
+        self.registration.showNotification(data.title, options)
+    );
+});
+
+// التعامل مع النقر على الإشعار
+self.addEventListener('notificationclick', event => {
+    console.log('Notification clicked:', event);
+    
+    event.notification.close();
+    
+    const urlToOpen = event.notification.data.url || '/';
+    
+    event.waitUntil(
+        clients.matchAll({
+            type: 'window',
+            includeUncontrolled: true
+        })
+        .then(windowClients => {
+            // البحث عن نافذة مفتوحة بالفعل
+            for (let client of windowClients) {
+                if (client.url === urlToOpen && 'focus' in client) {
+                    return client.focus();
+                }
+            }
+            // فتح نافذة جديدة إذا لم تكن موجودة
+            if (clients.openWindow) {
+                return clients.openWindow(urlToOpen);
+            }
+        })
+    );
 });

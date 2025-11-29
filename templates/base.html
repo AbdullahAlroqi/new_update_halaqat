@@ -1,246 +1,268 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="theme-color" content="#0d7377">
     <meta name="description" content="نظام إدارة معلمي الحلقات والمقرأة الإلكترونية - مكة المكرمة">
-    
+
     <!-- PWA Meta Tags -->
     <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="حلقات مكة">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/logo-192.png') }}">
     <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
-    
+
     <title>{% block title %}نظام إدارة معلمي الحلقات - مكة المكرمة{% endblock %}</title>
-    
+
     <!-- Favicon -->
     {% if system_settings and system_settings.logo_path %}
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/' + system_settings.logo_path) }}">
-    <link rel="shortcut icon" type="image/png" href="{{ url_for('static', filename='images/' + system_settings.logo_path) }}">
+    <link rel="shortcut icon" type="image/png"
+        href="{{ url_for('static', filename='images/' + system_settings.logo_path) }}">
     {% else %}
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/logo.png') }}">
     <link rel="shortcut icon" type="image/png" href="{{ url_for('static', filename='images/logo.png') }}">
     {% endif %}
-    
+
     <!-- Bootstrap RTL CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
-    
+
     <!-- Font Awesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
+
     <!-- Google Fonts - Arabic -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700&family=Amiri:wght@400;700&display=swap" rel="stylesheet">
-    
+    <link
+        href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700&family=Amiri:wght@400;700&display=swap"
+        rel="stylesheet">
+
     <!-- Custom CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    
+
     {% block extra_css %}{% endblock %}
 </head>
+
 <body>
-    
+
     <!-- Navbar -->
-    <nav class="navbar navbar-expand-lg navbar-islamic sticky-top">
+    <nav class="navbar navbar-expand-lg navbar-dark sticky-top shadow-sm"
+        style="background: linear-gradient(135deg, #0d7377 0%, #14FFEC 100%);">
         <div class="container-fluid">
-            <a class="navbar-brand d-flex align-items-center" href="{{ url_for('index') }}">
+            <a class="navbar-brand d-flex align-items-center fw-bold" href="{{ url_for('index') }}">
                 {% if system_settings and system_settings.logo_path %}
-                <img src="{{ url_for('static', filename='images/' + system_settings.logo_path) }}" alt="شعار النظام" class="navbar-logo me-2">
+                <img src="{{ url_for('static', filename='images/' + system_settings.logo_path) }}" alt="شعار النظام"
+                    class="navbar-logo me-2 rounded-circle border border-2 border-white"
+                    style="width: 40px; height: 40px; object-fit: cover;">
                 {% else %}
-                <img src="{{ url_for('static', filename='images/logo.png') }}" alt="شعار النظام" class="navbar-logo me-2">
+                <img src="{{ url_for('static', filename='images/logo.png') }}" alt="شعار النظام"
+                    class="navbar-logo me-2 rounded-circle border border-2 border-white"
+                    style="width: 40px; height: 40px; object-fit: cover;">
                 {% endif %}
-                <span class="brand-text">{{ system_settings.system_name if system_settings else 'حلقات مكة المكرمة' }}</span>
+                <span class="brand-text text-white">{{ system_settings.system_name if system_settings else 'حلقات مكة
+                    المكرمة' }}</span>
             </a>
-            
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+
+            <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
-            
+
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                     {% if current_user.is_authenticated %}
-                        
-                        <!-- قائمة الموظف -->
-                        {% if current_user.role == 'موظف' %}
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('employee.dashboard') }}">
-                                <i class="fas fa-home ms-1"></i> لوحة التحكم
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('employee.my_schedule') }}">
-                                <i class="fas fa-calendar ms-1"></i> جدولي
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('employee.leave_request') }}">
-                                <i class="fas fa-paper-plane ms-1"></i> طلب إجازة
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('employee.my_leaves') }}">
-                                <i class="fas fa-umbrella-beach ms-1"></i> إجازاتي
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('employee.my_attendance') }}">
-                                <i class="fas fa-check-circle ms-1"></i> حضوري
-                            </a>
-                        </li>
-                        {% endif %}
-                        
-                        <!-- قائمة المشرف -->
-                        {% if current_user.role in ['مشرف رئيسي', 'مشرف فرعي'] %}
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('supervisor.dashboard') }}">
-                                <i class="fas fa-home ms-1"></i> لوحة التحكم
-                            </a>
-                        </li>
-                        {% if current_user.role == 'مشرف رئيسي' %}
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('supervisor.schedules') }}">
-                                <i class="fas fa-calendar-alt ms-1"></i> الجداول
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('supervisor.leave_requests') }}">
-                                <i class="fas fa-inbox ms-1"></i> طلبات الإجازات
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('supervisor.sub_supervisors') }}">
-                                <i class="fas fa-users ms-1"></i> المشرفون الفرعيون
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('supervisor.assign_to_subs') }}">
-                                <i class="fas fa-link ms-1"></i> إسناد المعلمين
-                            </a>
-                        </li>
-                        {% endif %}
-                        {% if current_user.role == 'مشرف فرعي' %}
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('certificates.manage_certificates') }}">
-                                <i class="fas fa-certificate ms-1"></i> الشهادات
-                            </a>
-                        </li>
-                        {% endif %}
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('supervisor.attendance') }}">
-                                <i class="fas fa-user-check ms-1"></i> الحضور والغياب
-                            </a>
-                        </li>
-                        {% endif %}
-                        
-                        <!-- قائمة الإدارة -->
-                        {% if current_user.role in ['مدير النظام الأساسي', 'مدير نظام فرعي'] %}
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('admin.dashboard') }}">
-                                <i class="fas fa-home ms-1"></i> لوحة التحكم
-                            </a>
-                        </li>
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                                <i class="fas fa-users ms-1"></i> إدارة المستخدمين
-                            </a>
-                            <ul class="dropdown-menu">
-                                <li><a class="dropdown-item" href="{{ url_for('admin.employees') }}">الموظفون</a></li>
-                                <li><a class="dropdown-item" href="{{ url_for('admin.supervisors') }}">المشرفون</a></li>
-                                <li><hr class="dropdown-divider"></li>
-                                <li><a class="dropdown-item" href="{{ url_for('admin.assign_employees') }}">إسناد الموظفين</a></li>
-                            </ul>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('admin.leave_types') }}">
-                                <i class="fas fa-list ms-1"></i> أنواع الإجازات
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('admin.schedules_table') }}">
-                                <i class="fas fa-calendar-alt ms-1"></i> جدول الحلقات
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('admin.attendance_management') }}">
-                                <i class="fas fa-clipboard-check ms-1"></i> التحضير
-                            </a>
-                        </li>
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                                <i class="fas fa-cogs ms-1"></i> الإعدادات المتقدمة
-                            </a>
-                            <ul class="dropdown-menu">
-                                <li><a class="dropdown-item" href="{{ url_for('admin.absence_statuses') }}">
-                                    <i class="fas fa-clipboard-list ms-1"></i> حالات الغياب
-                                </a></li>
-                                <li><a class="dropdown-item" href="{{ url_for('admin.activity_logs') }}">
-                                    <i class="fas fa-history ms-1"></i> سجل النشاطات
-                                </a></li>
-                                {% if current_user.role == 'مدير النظام الأساسي' %}
-                                <li><hr class="dropdown-divider"></li>
-                                <li><a class="dropdown-item" href="{{ url_for('admin.system_admins') }}">
-                                    <i class="fas fa-user-shield ms-1"></i> مديرو النظام
-                                </a></li>
-                                {% endif %}
-                            </ul>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('admin.leave_requests') }}">
-                                <i class="fas fa-inbox ms-1"></i> طلبات الإجازات
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('admin.reports') }}">
-                                <i class="fas fa-chart-bar ms-1"></i> التقارير
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('certificates.admin_manage') }}">
-                                <i class="fas fa-certificate ms-1"></i> الشهادات
-                            </a>
-                        </li>
-                        {% if current_user.role == 'مدير النظام الأساسي' %}
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('admin.settings') }}">
-                                <i class="fas fa-cog ms-1"></i> الإعدادات
-                            </a>
-                        </li>
-                        {% endif %}
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('admin.account_settings') }}">
-                                <i class="fas fa-user-cog ms-1"></i> إعدادات الحساب
-                            </a>
-                        </li>
-                        {% endif %}
-                        
-                    {% else %}
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('employee.inquiry') }}">
-                                <i class="fas fa-search ms-1"></i> الاستعلام
-                            </a>
-                        </li>
-                    {% endif %}
-                </ul>
-                
-                <ul class="navbar-nav">
-                    {% if current_user.is_authenticated %}
+
+                    <!-- قائمة الموظف -->
+                    {% if current_user.role == 'موظف' %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('employee.dashboard') }}">
+                            <i class="fas fa-home ms-1"></i> الرئيسية
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('employee.my_schedule') }}">
+                            <i class="fas fa-calendar ms-1"></i> جدولي
+                        </a>
+                    </li>
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                            <i class="fas fa-user-circle ms-1"></i> {{ current_user.name }}
+                            <i class="fas fa-umbrella-beach ms-1"></i> الإجازات
                         </a>
-                        <ul class="dropdown-menu dropdown-menu-end">
-                            <li><a class="dropdown-item disabled">{{ current_user.role }}</a></li>
-                            <li><hr class="dropdown-divider"></li>
+                        <ul class="dropdown-menu border-0 shadow">
+                            <li><a class="dropdown-item" href="{{ url_for('employee.leave_request') }}">طلب إجازة</a>
+                            </li>
+                            <li><a class="dropdown-item" href="{{ url_for('employee.my_leaves') }}">سجل إجازاتي</a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('employee.my_attendance') }}">
+                            <i class="fas fa-check-circle ms-1"></i> الحضور
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    <!-- قائمة المشرف -->
+                    {% if current_user.role in ['مشرف رئيسي', 'مشرف فرعي'] %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('supervisor.dashboard') }}">
+                            <i class="fas fa-home ms-1"></i> الرئيسية
+                        </a>
+                    </li>
+
+                    {% if current_user.role == 'مشرف رئيسي' %}
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-tasks ms-1"></i> الإدارة
+                        </a>
+                        <ul class="dropdown-menu border-0 shadow">
+                            <li><a class="dropdown-item" href="{{ url_for('supervisor.schedules') }}">الجداول</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('supervisor.sub_supervisors') }}">المشرفون
+                                    الفرعيون</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('supervisor.assign_to_subs') }}">إسناد
+                                    المعلمين</a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('supervisor.leave_requests') }}">
+                            <i class="fas fa-inbox ms-1"></i> طلبات الإجازات
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    {% if current_user.role == 'مشرف فرعي' %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('certificates.manage_certificates') }}">
+                            <i class="fas fa-certificate ms-1"></i> الشهادات
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('supervisor.attendance') }}">
+                            <i class="fas fa-user-check ms-1"></i> الحضور
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    <!-- قائمة الإدارة -->
+                    {% if current_user.role in ['مدير النظام الأساسي', 'مدير نظام فرعي'] %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('admin.dashboard') }}">
+                            <i class="fas fa-home ms-1"></i> الرئيسية
+                        </a>
+                    </li>
+
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-users ms-1"></i> المستخدمين
+                        </a>
+                        <ul class="dropdown-menu border-0 shadow">
+                            <li><a class="dropdown-item" href="{{ url_for('admin.employees') }}">الموظفون</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('admin.supervisors') }}">المشرفون</a></li>
+                            <li>
+                                <hr class="dropdown-divider">
+                            </li>
+                            <li><a class="dropdown-item" href="{{ url_for('admin.assign_employees') }}">إسناد
+                                    الموظفين</a></li>
+                        </ul>
+                    </li>
+
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-inbox ms-1"></i> الطلبات
+                        </a>
+                        <ul class="dropdown-menu border-0 shadow">
+                            <li><a class="dropdown-item" href="{{ url_for('admin.leave_requests') }}">طلبات الإجازات</a>
+                            </li>
+                            <li><a class="dropdown-item" href="{{ url_for('admin.khatma_requests') }}">طلبات الختمات</a>
+                            </li>
+                        </ul>
+                    </li>
+
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-cogs ms-1"></i> العمليات
+                        </a>
+                        <ul class="dropdown-menu border-0 shadow">
+                            <li><a class="dropdown-item" href="{{ url_for('admin.schedules_table') }}">جدول الحلقات</a>
+                            </li>
+                            <li><a class="dropdown-item" href="{{ url_for('admin.attendance_management') }}">التحضير</a>
+                            </li>
+                            <li><a class="dropdown-item" href="{{ url_for('certificates.admin_manage') }}">الشهادات</a>
+                            </li>
+                            <li><a class="dropdown-item" href="{{ url_for('admin.reports') }}">التقارير</a></li>
+                        </ul>
+                    </li>
+
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-sliders-h ms-1"></i> الإعدادات
+                        </a>
+                        <ul class="dropdown-menu border-0 shadow">
+                            <li><a class="dropdown-item" href="{{ url_for('admin.leave_types') }}">أنواع الإجازات</a>
+                            </li>
+                            <li><a class="dropdown-item" href="{{ url_for('admin.absence_statuses') }}">حالات الغياب</a>
+                            </li>
+                            <li><a class="dropdown-item" href="{{ url_for('admin.activity_logs') }}">سجل النشاطات</a>
+                            </li>
+                            <li><a class="dropdown-item" href="{{ url_for('admin.account_settings') }}">إعدادات
+                                    الحساب</a></li>
+                            {% if current_user.role == 'مدير النظام الأساسي' %}
+                            <li>
+                                <hr class="dropdown-divider">
+                            </li>
+                            <li><a class="dropdown-item" href="{{ url_for('admin.settings') }}">إعدادات النظام</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('admin.system_admins') }}">مديرو النظام</a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </li>
+                    {% endif %}
+
+                    {% else %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('employee.inquiry') }}">
+                            <i class="fas fa-search ms-1"></i> الاستعلام
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+
+                <ul class="navbar-nav align-items-center">
+                    {% if current_user.is_authenticated %}
+                    <!-- زر تفعيل الإشعارات -->
+                    <li class="nav-item me-2" id="notificationBellContainer" style="display: none;">
+                        <a class="nav-link position-relative text-white" href="#" id="notificationBell"
+                            title="تفعيل الإشعارات">
+                            <i class="fas fa-bell fa-lg" id="bellIcon"></i>
+                            <span
+                                class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger border border-light"
+                                id="notificationBadge" style="display: none;">!</span>
+                        </a>
+                    </li>
+
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle d-flex align-items-center bg-white bg-opacity-10 rounded-pill px-3 py-1 text-white"
+                            href="#" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-user-circle fa-lg ms-2"></i>
+                            <span class="small fw-bold">{{ current_user.name }}</span>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end border-0 shadow mt-2">
+                            <li><span class="dropdown-header">{{ current_user.role }}</span></li>
+                            <li>
+                                <hr class="dropdown-divider">
+                            </li>
                             <li><a class="dropdown-item" href="{{ url_for('logout') }}">
-                                <i class="fas fa-sign-out-alt ms-1"></i> تسجيل الخروج
-                            </a></li>
+                                    <i class="fas fa-sign-out-alt ms-2 text-danger"></i> تسجيل الخروج
+                                </a></li>
                         </ul>
                     </li>
                     {% else %}
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('login') }}">
+                        <a class="nav-link btn btn-light text-primary px-4 rounded-pill fw-bold"
+                            href="{{ url_for('login') }}">
                             <i class="fas fa-sign-in-alt ms-1"></i> تسجيل الدخول
                         </a>
                     </li>
@@ -249,26 +271,26 @@
             </div>
         </div>
     </nav>
-    
+
     <!-- Flash Messages -->
     <div class="container mt-3">
         {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-                    {{ message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                </div>
-                {% endfor %}
-            {% endif %}
+        {% if messages %}
+        {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}
+        {% endif %}
         {% endwith %}
     </div>
-    
+
     <!-- Main Content -->
     <main class="main-content">
         {% block content %}{% endblock %}
     </main>
-    
+
     <!-- Footer -->
     <footer class="footer-islamic mt-5">
         <div class="container text-center">
@@ -278,20 +300,180 @@
                 <strong>إدارة الحلقات و المقارئ الالكترونية</strong>
             </p>
             <p class="mb-1 small">
-                
+
             </p>
             <p class="mb-0 small text-muted">
                 مكة المكرمة - 1447 هـ
             </p>
         </div>
     </footer>
-    
+
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    
+
     <!-- Custom JS -->
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
-    
+
+    <!-- Push Notifications Logic -->
+    {% if current_user.is_authenticated %}
+    <script>
+        let serviceWorkerRegistration = null;
+
+        // تسجيل Service Worker ودعم الإشعارات
+        if ('serviceWorker' in navigator && 'PushManager' in window) {
+            navigator.serviceWorker.register('/sw.js')
+                .then(function (registration) {
+                    console.log('Service Worker registered:', registration);
+                    serviceWorkerRegistration = registration;
+
+                    // عرض زر الجرس
+                    updateNotificationUI();
+                })
+                .catch(function (error) {
+                    console.error('Service Worker registration failed:', error);
+                });
+        }
+
+        // تحديث واجهة الإشعارات
+        function updateNotificationUI() {
+            const bellContainer = document.getElementById('notificationBellContainer');
+            const bellIcon = document.getElementById('bellIcon');
+            const badge = document.getElementById('notificationBadge');
+
+            if (!bellContainer) return;
+
+            bellContainer.style.display = 'block';
+
+            if (Notification.permission === 'granted') {
+                // الإشعارات مفعلة
+                bellIcon.className = 'fas fa-bell text-success';
+                badge.style.display = 'none';
+            } else if (Notification.permission === 'denied') {
+                // تم رفض الإشعارات
+                bellIcon.className = 'fas fa-bell-slash text-danger';
+                badge.style.display = 'none';
+            } else {
+                // لم يتم طلب الإذن بعد
+                bellIcon.className = 'fas fa-bell text-warning';
+                badge.style.display = 'inline-block';
+            }
+        }
+
+        // عند النقر على زر الجرس
+        document.addEventListener('DOMContentLoaded', function () {
+            const bellButton = document.getElementById('notificationBell');
+            if (bellButton) {
+                bellButton.addEventListener('click', function (e) {
+                    e.preventDefault();
+
+                    if (Notification.permission === 'granted') {
+                        alert('✅ الإشعارات مفعلة بالفعل!');
+                    } else if (Notification.permission === 'denied') {
+                        alert('❌ تم رفض الإشعارات من قبل. الرجاء تفعيلها من إعدادات المتصفح.');
+                    } else {
+                        // طلب الإذن
+                        requestNotificationPermission(serviceWorkerRegistration);
+                    }
+                });
+            }
+        });
+
+        function requestNotificationPermission(registration) {
+            if (!registration) {
+                alert('يرجى الانتظار حتى يتم تحميل النظام...');
+                return;
+            }
+
+            Notification.requestPermission().then(function (permission) {
+                updateNotificationUI();
+
+                if (permission === 'granted') {
+                    console.log('Notification permission granted');
+                    subscribeUserToPush(registration);
+                    alert('✅ تم تفعيل الإشعارات بنجاح!');
+                } else {
+                    console.log('Notification permission denied');
+                    alert('❌ تم رفض تفعيل الإشعارات');
+                }
+            });
+        }
+
+        function subscribeUserToPush(registration) {
+            // الحصول على المفتاح العام VAPID
+            fetch('/vapid-public-key')
+                .then(response => response.json())
+                .then(data => {
+                    const publicKey = data.publicKey;
+                    const applicationServerKey = urlBase64ToUint8Array(publicKey);
+
+                    // الاشتراك في الإشعارات
+                    return registration.pushManager.subscribe({
+                        userVisibleOnly: true,
+                        applicationServerKey: applicationServerKey
+                    });
+                })
+                .then(function (subscription) {
+                    console.log('User is subscribed:', subscription);
+
+                    // إرسال الاشتراك للسيرفر
+                    return fetch('/subscribe', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(subscription)
+                    });
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        console.log('Subscription saved successfully');
+                    }
+                })
+                .catch(function (error) {
+                    console.error('Failed to subscribe:', error);
+                });
+        }
+
+        function urlBase64ToUint8Array(base64String) {
+            const padding = '='.repeat((4 - base64String.length % 4) % 4);
+            const base64 = (base64String + padding)
+                .replace(/\-/g, '+')
+                .replace(/_/g, '/');
+
+            const rawData = window.atob(base64);
+            const outputArray = new Uint8Array(rawData.length);
+
+            for (let i = 0; i < rawData.length; ++i) {
+                outputArray[i] = rawData.charCodeAt(i);
+            }
+            return outputArray;
+        }
+    </script>
+    {% endif %}
+
     {% block extra_js %}{% endblock %}
+    <!-- Polling for Notifications & Session Keep-alive -->
+    <script>
+        function checkNotifications() {
+            const nationalId = localStorage.getItem('emp_national_id') || '';
+
+            fetch(`/api/check-notifications?national_id=${nationalId}`)
+                .then(response => response.json())
+                .then(data => {
+                    // هنا يمكن تحديث واجهة المستخدم إذا كان هناك إشعارات جديدة
+                    // حالياً هذا يعمل كـ heartbeat للحفاظ على الجلسة وتحديث الحالة
+                    console.log('Notification check:', data.timestamp);
+                })
+                .catch(error => console.error('Error checking notifications:', error));
+        }
+
+        // تحديث كل 30 ثانية
+        setInterval(checkNotifications, 30000);
+
+        // تشغيل مرة واحدة عند التحميل
+        document.addEventListener('DOMContentLoaded', checkNotifications);
+    </script>
 </body>
+
 </html>

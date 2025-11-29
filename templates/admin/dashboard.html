@@ -3,144 +3,282 @@
 {% block title %}لوحة تحكم الإدارة{% endblock %}
 
 {% block content %}
-<div class="container">
-    <div class="row mb-4">
+<div class="container-fluid px-4">
+    <!-- Welcome Section -->
+    <div class="row mb-4 mt-4">
         <div class="col-12">
-            <h2 class="text-center mb-4">
-                <i class="fas fa-tachometer-alt ms-2"></i>
-                لوحة تحكم الإدارة
-            </h2>
-        </div>
-    </div>
-    
-    <!-- الإحصائيات -->
-    <div class="row mb-4">
-        <div class="col-md-3 col-sm-6 mb-3">
-            <div class="stats-card">
-                <i class="fas fa-users"></i>
-                <h3>{{ total_employees }}</h3>
-                <p>إجمالي الموظفين</p>
-            </div>
-        </div>
-        
-        <div class="col-md-3 col-sm-6 mb-3">
-            <div class="stats-card">
-                <i class="fas fa-user-tie"></i>
-                <h3>{{ total_supervisors }}</h3>
-                <p>المشرفون</p>
-            </div>
-        </div>
-        
-        <div class="col-md-3 col-sm-6 mb-3">
-            <div class="stats-card">
-                <i class="fas fa-clock"></i>
-                <h3>{{ pending_leaves }}</h3>
-                <p>طلبات قيد الانتظار</p>
-            </div>
-        </div>
-        
-        <div class="col-md-3 col-sm-6 mb-3">
-            <div class="stats-card">
-                <i class="fas fa-user-check"></i>
-                <h3>{{ present_today }}</h3>
-                <p>حضور اليوم</p>
-            </div>
-        </div>
-    </div>
-    
-    <!-- الإجراءات السريعة -->
-    <div class="row mb-4">
-        <div class="col-md-6 mb-3">
-            <div class="card-islamic h-100">
-                <div class="card-header">
-                    <i class="fas fa-bolt ms-2"></i>
-                    إجراءات سريعة
-                </div>
-                <div class="card-body">
-                    <div class="d-grid gap-3">
-                        <a href="{{ url_for('admin.add_employee') }}" class="btn btn-islamic">
-                            <i class="fas fa-user-plus ms-1"></i>
-                            إضافة موظف جديد
-                        </a>
-                        <a href="{{ url_for('admin.add_supervisor') }}" class="btn btn-islamic">
-                            <i class="fas fa-user-tie ms-1"></i>
-                            إضافة مشرف جديد
-                        </a>
-                        <a href="{{ url_for('admin.upload_employees') }}" class="btn btn-islamic-outline">
-                            <i class="fas fa-file-excel ms-1"></i>
-                            رفع ملف Excel
-                        </a>
-                        <a href="{{ url_for('admin.leave_requests') }}" class="btn btn-islamic-outline">
-                            <i class="fas fa-inbox ms-1"></i>
-                            طلبات الإجازات
-                        </a>
-                        <a href="{{ url_for('admin.reports') }}" class="btn btn-islamic-outline">
-                            <i class="fas fa-chart-bar ms-1"></i>
-                            التقارير
-                        </a>
-                        <a href="{{ url_for('certificates.admin_manage') }}" class="btn btn-islamic">
-                            <i class="fas fa-certificate ms-1"></i>
-                            إدارة الشهادات
-                        </a>
-                        <a href="{{ url_for('admin.leave_balance_management') }}" class="btn btn-islamic">
-                            <i class="fas fa-calendar-check ms-1"></i>
-                            إدارة رصيد الإجازات
-                        </a>
-                        <a href="{{ url_for('admin.account_settings') }}" class="btn btn-success">
-                            <i class="fas fa-user-cog ms-1"></i>
-                            إعدادات الحساب
-                        </a>
-                        {% if current_user.role == 'مدير النظام الأساسي' %}
-                        <a href="{{ url_for('admin.customize') }}" class="btn btn-islamic-outline">
-                            <i class="fas fa-palette ms-1"></i>
-                            تخصيص المظهر
-                        </a>
-                        <form method="POST" action="{{ url_for('admin.delete_test_data_route') }}" 
-                              onsubmit="return confirm('⚠️ هل أنت متأكد من حذف جميع بيانات الاختبار؟\n\nسيتم حذف:\n• جميع المشرفين التجريبيين\n• جميع الموظفين التجريبيين\n• جميع الجداول والحضور والإجازات المرتبطة بهم\n\nهذه العملية لا يمكن التراجع عنها!');" 
-                              style="display: inline;">
-                            <button type="submit" class="btn btn-danger">
-                                <i class="fas fa-trash-alt ms-1"></i>
-                                حذف بيانات الاختبار
-                            </button>
-                        </form>
-                        {% endif %}
+            <div class="welcome-card p-4 rounded-3 text-white"
+                style="background: linear-gradient(135deg, #0d7377 0%, #14FFEC 100%);">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h2 class="mb-1">مرحباً بك، {{ current_user.name }}</h2>
+                        <p class="mb-0 opacity-75">
+                            <i class="fas fa-calendar-alt ms-2"></i>
+                            {{ now().strftime('%Y-%m-%d') }}
+                        </p>
+                    </div>
+                    <div class="d-none d-md-block">
+                        <i class="fas fa-mosque fa-4x opacity-50"></i>
                     </div>
                 </div>
             </div>
         </div>
-        
-        <div class="col-md-6 mb-3">
-            <div class="card-islamic h-100">
-                <div class="card-header">
-                    <i class="fas fa-clock ms-2"></i>
-                    آخر طلبات الإجازات
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <!-- Employees -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-0 shadow-sm h-100 border-start border-4 border-primary">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="text-muted small text-uppercase mb-1">الموظفين</div>
+                            <div class="h3 mb-0 text-primary fw-bold">{{ total_employees }}</div>
+                        </div>
+                        <div class="icon-circle bg-primary bg-opacity-10 text-primary p-3 rounded-circle">
+                            <i class="fas fa-users fa-lg"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Supervisors -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-0 shadow-sm h-100 border-start border-4 border-info">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="text-muted small text-uppercase mb-1">المشرفين</div>
+                            <div class="h3 mb-0 text-info fw-bold">{{ total_supervisors }}</div>
+                        </div>
+                        <div class="icon-circle bg-info bg-opacity-10 text-info p-3 rounded-circle">
+                            <i class="fas fa-user-tie fa-lg"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Attendance -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-0 shadow-sm h-100 border-start border-4 border-success">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="text-muted small text-uppercase mb-1">حضور اليوم</div>
+                            <div class="h3 mb-0 text-success fw-bold">{{ present_today }}</div>
+                        </div>
+                        <div class="icon-circle bg-success bg-opacity-10 text-success p-3 rounded-circle">
+                            <i class="fas fa-user-check fa-lg"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pending Requests -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-0 shadow-sm h-100 border-start border-4 border-warning">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="text-muted small text-uppercase mb-1">طلبات معلقة</div>
+                            <div class="h3 mb-0 text-warning fw-bold">{{ pending_leaves + pending_khatmas }}</div>
+                            <small class="text-muted" style="font-size: 0.7rem;">
+                                {{ pending_leaves }} إجازة | {{ pending_khatmas }} ختمة
+                            </small>
+                        </div>
+                        <div class="icon-circle bg-warning bg-opacity-10 text-warning p-3 rounded-circle">
+                            <i class="fas fa-bell fa-lg"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Quick Actions -->
+        <div class="col-lg-8 mb-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white py-3">
+                    <h5 class="mb-0 text-primary">
+                        <i class="fas fa-bolt ms-2"></i>
+                        الوصول السريع
+                    </h5>
                 </div>
                 <div class="card-body">
+                    <div class="row g-3">
+                        <!-- User Management -->
+                        <div class="col-12 mb-2">
+                            <h6 class="text-muted border-bottom pb-2">إدارة المستخدمين</h6>
+                        </div>
+                        <div class="col-md-4 col-sm-6">
+                            <a href="{{ url_for('admin.add_employee') }}"
+                                class="btn btn-outline-primary w-100 p-3 text-start">
+                                <i class="fas fa-user-plus ms-2"></i> إضافة موظف
+                            </a>
+                        </div>
+                        <div class="col-md-4 col-sm-6">
+                            <a href="{{ url_for('admin.add_supervisor') }}"
+                                class="btn btn-outline-info w-100 p-3 text-start">
+                                <i class="fas fa-user-tie ms-2"></i> إضافة مشرف
+                            </a>
+                        </div>
+                        <div class="col-md-4 col-sm-6">
+                            <a href="{{ url_for('admin.upload_employees') }}"
+                                class="btn btn-outline-success w-100 p-3 text-start">
+                                <i class="fas fa-file-excel ms-2"></i> رفع ملف Excel
+                            </a>
+                        </div>
+
+                        <!-- Requests & Operations -->
+                        <div class="col-12 mb-2 mt-3">
+                            <h6 class="text-muted border-bottom pb-2">الطلبات والعمليات</h6>
+                        </div>
+                        <div class="col-md-4 col-sm-6">
+                            <a href="{{ url_for('admin.leave_requests') }}"
+                                class="btn btn-outline-warning w-100 p-3 text-start position-relative">
+                                <i class="fas fa-inbox ms-2"></i> طلبات الإجازات
+                                {% if pending_leaves > 0 %}
+                                <span
+                                    class="position-absolute top-0 start-0 translate-middle badge rounded-pill bg-danger">
+                                    {{ pending_leaves }}
+                                </span>
+                                {% endif %}
+                            </a>
+                        </div>
+                        <div class="col-md-4 col-sm-6">
+                            <a href="{{ url_for('admin.khatma_requests') }}"
+                                class="btn btn-outline-purple w-100 p-3 text-start position-relative"
+                                style="color: #6f42c1; border-color: #6f42c1;">
+                                <i class="fas fa-book-quran ms-2"></i> طلبات الختمات
+                                {% if pending_khatmas > 0 %}
+                                <span
+                                    class="position-absolute top-0 start-0 translate-middle badge rounded-pill bg-danger">
+                                    {{ pending_khatmas }}
+                                </span>
+                                {% endif %}
+                            </a>
+                        </div>
+                        <div class="col-md-4 col-sm-6">
+                            <a href="{{ url_for('admin.attendance_management') }}"
+                                class="btn btn-outline-dark w-100 p-3 text-start">
+                                <i class="fas fa-clipboard-check ms-2"></i> التحضير
+                            </a>
+                        </div>
+
+                        <!-- Reports & Settings -->
+                        <div class="col-12 mb-2 mt-3">
+                            <h6 class="text-muted border-bottom pb-2">التقارير والإعدادات</h6>
+                        </div>
+                        <div class="col-md-4 col-sm-6">
+                            <a href="{{ url_for('admin.reports') }}"
+                                class="btn btn-outline-secondary w-100 p-3 text-start">
+                                <i class="fas fa-chart-bar ms-2"></i> التقارير
+                            </a>
+                        </div>
+                        <div class="col-md-4 col-sm-6">
+                            <a href="{{ url_for('certificates.admin_manage') }}"
+                                class="btn btn-outline-secondary w-100 p-3 text-start">
+                                <i class="fas fa-certificate ms-2"></i> الشهادات
+                            </a>
+                        </div>
+                        <div class="col-md-4 col-sm-6">
+                            <a href="{{ url_for('admin.settings') }}"
+                                class="btn btn-outline-secondary w-100 p-3 text-start">
+                                <i class="fas fa-cogs ms-2"></i> الإعدادات
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Activity -->
+        <div class="col-lg-4 mb-4">
+            <!-- Recent Leaves -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0 text-primary">
+                        <i class="fas fa-clock ms-2"></i> آخر الإجازات
+                    </h6>
+                    <a href="{{ url_for('admin.leave_requests') }}" class="btn btn-sm btn-link text-decoration-none">عرض
+                        الكل</a>
+                </div>
+                <div class="card-body p-0">
                     {% if recent_leaves %}
-                    <div class="list-group">
+                    <div class="list-group list-group-flush">
                         {% for leave in recent_leaves %}
-                        <div class="list-group-item">
+                        <div class="list-group-item border-bottom">
                             <div class="d-flex w-100 justify-content-between">
-                                <h6 class="mb-1">{{ leave.employee.name }}</h6>
+                                <h6 class="mb-1 fw-bold">{{ leave.employee.name }}</h6>
                                 <small>
                                     {% if leave.status == 'قيد الانتظار' %}
-                                    <span class="badge badge-pending">{{ leave.status }}</span>
+                                    <span class="badge bg-warning text-dark">{{ leave.status }}</span>
                                     {% elif leave.status == 'مقبول' %}
-                                    <span class="badge badge-approved">{{ leave.status }}</span>
+                                    <span class="badge bg-success">{{ leave.status }}</span>
                                     {% else %}
-                                    <span class="badge badge-rejected">{{ leave.status }}</span>
+                                    <span class="badge bg-danger">{{ leave.status }}</span>
                                     {% endif %}
                                 </small>
                             </div>
-                            <p class="mb-1 small">{{ leave.leave_type.name }} - {{ leave.days_count }} يوم</p>
-                            <small class="text-muted">{{ leave.created_at.strftime('%Y-%m-%d') }}</small>
+                            <p class="mb-1 small text-muted">{{ leave.leave_type.name }} ({{ leave.days_count }} يوم)
+                            </p>
+                            <small class="text-muted" style="font-size: 0.75rem;">
+                                <i class="far fa-calendar-alt ms-1"></i> {{ leave.created_at.strftime('%Y-%m-%d') }}
+                            </small>
                         </div>
                         {% endfor %}
                     </div>
                     {% else %}
-                    <div class="alert alert-info">
-                        <i class="fas fa-info-circle ms-2"></i>
-                        لا توجد طلبات حديثة
+                    <div class="p-4 text-center text-muted">
+                        <i class="fas fa-inbox fa-2x mb-2 opacity-50"></i>
+                        <p class="mb-0">لا توجد طلبات حديثة</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Recent Khatmas -->
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0" style="color: #6f42c1;">
+                        <i class="fas fa-book-quran ms-2"></i> آخر الختمات
+                    </h6>
+                    <a href="{{ url_for('admin.khatma_requests') }}" class="btn btn-sm btn-link text-decoration-none"
+                        style="color: #6f42c1;">عرض الكل</a>
+                </div>
+                <div class="card-body p-0">
+                    {% if recent_khatmas %}
+                    <div class="list-group list-group-flush">
+                        {% for khatma in recent_khatmas %}
+                        <div class="list-group-item border-bottom">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1 fw-bold">{{ khatma.student_name }}</h6>
+                                <small>
+                                    {% if khatma.status == 'قيد الانتظار' %}
+                                    <span class="badge bg-warning text-dark">{{ khatma.status }}</span>
+                                    {% elif khatma.status == 'مقبول' %}
+                                    <span class="badge bg-success">{{ khatma.status }}</span>
+                                    {% else %}
+                                    <span class="badge bg-danger">{{ khatma.status }}</span>
+                                    {% endif %}
+                                </small>
+                            </div>
+                            <p class="mb-1 small text-muted">المعلم: {{ khatma.employee.name }}</p>
+                            <small class="text-muted" style="font-size: 0.75rem;">
+                                <i class="far fa-calendar-alt ms-1"></i> {{ khatma.created_at.strftime('%Y-%m-%d') }}
+                            </small>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="p-4 text-center text-muted">
+                        <i class="fas fa-book-open fa-2x mb-2 opacity-50"></i>
+                        <p class="mb-0">لا توجد طلبات حديثة</p>
                     </div>
                     {% endif %}
                 </div>
@@ -148,4 +286,28 @@
         </div>
     </div>
 </div>
+
+<style>
+    .icon-circle {
+        width: 48px;
+        height: 48px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .btn-outline-purple {
+        color: #6f42c1;
+        border-color: #6f42c1;
+    }
+
+    .btn-outline-purple:hover {
+        background-color: #6f42c1;
+        color: white;
+    }
+
+    .list-group-item:last-child {
+        border-bottom: 0 !important;
+    }
+</style>
 {% endblock %}

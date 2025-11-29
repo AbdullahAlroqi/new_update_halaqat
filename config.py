@@ -14,7 +14,7 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
     # إعدادات الجلسة
-    PERMANENT_SESSION_LIFETIME = timedelta(hours=24)
+    PERMANENT_SESSION_LIFETIME = timedelta(days=365)
     
     # مجلد رفع الملفات
     UPLOAD_FOLDER = os.path.join(BASE_DIR, 'uploads')
@@ -32,11 +32,16 @@ class Config:
     
     # أنواع الإجازات الافتراضية
     DEFAULT_LEAVE_TYPES = [
-        {'name': 'إجازة مرضية', 'max_days': 10, 'requires_attachment': True},
+        {'name': 'إجازة مرضية', 'max_days': 90, 'requires_attachment': True, 'deduct_from_balance': False},
         {'name': 'إجازة طارئة', 'max_days': 3, 'requires_attachment': False},
         {'name': 'إجازة سنوية', 'max_days': 21, 'requires_attachment': False},
         {'name': 'إجازة اضطرارية', 'max_days': 5, 'requires_attachment': True},
     ]
+    
+    # VAPID Keys for Push Notifications
+    VAPID_PRIVATE_KEY = 'Pd1TWGjtiW7g4Lh6fB_gSNZa7VN3YVRYN H7_QUN0wkU'
+    VAPID_PUBLIC_KEY = 'BOCp1i9BL1HrGsp_anwxlQlUdLzKVKEW3-zDhcJtyuucoAfS_1sV6wBQH12YWLcSBQ8j1R8UyAnANCnFrfhjWlA'
+    VAPID_CLAIMS_SUB = 'mailto:halaqat@example.com'
     
     # إنشاء المجلدات المطلوبة
     @staticmethod

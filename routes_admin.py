@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, send_file, make_response
 from flask_login import login_required, current_user
-from models import db, User, Role, LeaveRequest, LeaveType, Schedule, Attendance, SystemSettings, Notification, ActivityLog, AbsenceStatus, Certificate
+from models import db, User, Role, LeaveRequest, LeaveType, Schedule, Attendance, SystemSettings, Notification, ActivityLog, AbsenceStatus, Certificate, KhatmaRequest
 from datetime import datetime, timedelta
 from werkzeug.utils import secure_filename
 import openpyxl
@@ -16,6 +16,7 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.lib.enums import TA_RIGHT, TA_CENTER
 from sqlalchemy import or_, and_
+import push_service
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
 
@@ -55,6 +56,7 @@ def dashboard():
         User.role.in_([Role.MAIN_SUPERVISOR, Role.SUB_SUPERVISOR])
     ).count()
     pending_leaves = LeaveRequest.query.filter_by(status='قيد الانتظار').count()
+    pending_khatmas = KhatmaRequest.query.filter_by(status='قيد الانتظار').count()
     
     # الحضور اليوم
     today = datetime.now().date()
@@ -64,14 +66,19 @@ def dashboard():
     ).count()
     
     # آخر طلبات الإجازات
-    recent_leaves = LeaveRequest.query.order_by(LeaveRequest.created_at.desc()).limit(10).all()
+    recent_leaves = LeaveRequest.query.order_by(LeaveRequest.created_at.desc()).limit(5).all()
+    
+    # آخر طلبات الختمات
+    recent_khatmas = KhatmaRequest.query.order_by(KhatmaRequest.created_at.desc()).limit(5).all()
     
     return render_template('admin/dashboard.html',
                          total_employees=total_employees,
                          total_supervisors=total_supervisors,
                          pending_leaves=pending_leaves,
+                         pending_khatmas=pending_khatmas,
                          present_today=present_today,
-                         recent_leaves=recent_leaves)
+                         recent_leaves=recent_leaves,
+                         recent_khatmas=recent_khatmas)
 
 # إدارة المشرفين
 @admin_bp.route('/supervisors')
@@ -1661,3 +1668,105 @@ def update_leave_balance(user_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': 'حدث خطأ أثناء تحديث الرصيد'}), 500
+
+# إدارة طلبات الختمة
+@admin_bp.route('/khatma-requests')
+@login_required
+def khatma_requests():
+    if not admin_required():
+        flash('ليس لديك صلاحية للوصول إلى هذه الصفحة', 'danger')
+        return redirect(url_for('index'))
+    
+    # الفلاتر
+    status_filter = request.args.get('status', '')
+    
+    query = KhatmaRequest.query
+    
+    if status_filter:
+        query = query.filter_by(status=status_filter)
+    
+    requests_list = query.order_by(KhatmaRequest.created_at.desc()).all()
+    
+    return render_template('admin/khatma_requests.html', requests=requests_list)
+
+# الموافقة على طلب ختمة
+@admin_bp.route('/khatma-request/<int:request_id>/approve', methods=['POST'])
+@login_required
+def approve_khatma_request(request_id):
+    if not admin_required():
+        return jsonify({'success': False, 'message': 'ليس لديك صلاحية'}), 403
+    
+    khatma_req = KhatmaRequest.query.get_or_404(request_id)
+    
+    try:
+        # حفظ التاريخ الأصلي إذا لم يكن محفوظاً
+        if not khatma_req.original_date:
+            khatma_req.original_date = khatma_req.khatma_date
+        
+        # تحديث التاريخ إذا تم تغييره
+        new_date_str = request.form.get('new_date')
+        if new_date_str:
+            new_date = datetime.strptime(new_date_str, '%Y-%m-%d').date()
+            khatma_req.khatma_date = new_date
+        
+        khatma_req.status = 'مقبول'
+        khatma_req.reviewed_by = current_user.id
+        khatma_req.reviewed_at = datetime.utcnow()
+        khatma_req.review_notes = request.form.get('notes', '')
+        
+        db.session.commit()
+        
+        # تسجيل النشاط
+        log_activity('موافقة', 'طلب ختمة', request_id, 
+                    f'تمت الموافقة على طلب ختمة للطالب: {khatma_req.student_name}')
+        
+        # إرسال إشعار للموظف
+        push_service.send_push_by_national_id(
+            khatma_req.employee.national_id,
+            'تحديث على طلب الختمة',
+            f'تم قبول طلب الختمة للطالب {khatma_req.student_name}',
+            '/employee/dashboard'
+        )
+        
+        flash('تم قبول طلب الختمة بنجاح', 'success')
+        return jsonify({'success': True})
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+# رفض طلب ختمة
+@admin_bp.route('/khatma-request/<int:request_id>/reject', methods=['POST'])
+@login_required
+def reject_khatma_request(request_id):
+    if not admin_required():
+        return jsonify({'success': False, 'message': 'ليس لديك صلاحية'}), 403
+    
+    khatma_req = KhatmaRequest.query.get_or_404(request_id)
+    
+    try:
+        khatma_req.status = 'مرفوض'
+        khatma_req.reviewed_by = current_user.id
+        khatma_req.reviewed_at = datetime.utcnow()
+        khatma_req.review_notes = request.form.get('notes', '')
+        
+        db.session.commit()
+        
+        # تسجيل النشاط
+        log_activity('رفض', 'طلب ختمة', request_id, 
+                    f'تم رفض طلب ختمة للطالب: {khatma_req.student_name}')
+        
+        # إرسال إشعار للموظف
+        push_service.send_push_by_national_id(
+            khatma_req.employee.national_id,
+            'تحديث على طلب الختمة',
+            f'تم رفض طلب الختمة للطالب {khatma_req.student_name}',
+            '/employee/dashboard'
+        )
+        
+        flash('تم رفض طلب الختمة', 'info')
+        return jsonify({'success': True})
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500

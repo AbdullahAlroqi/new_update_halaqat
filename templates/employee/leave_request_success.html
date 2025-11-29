@@ -11,9 +11,9 @@
                     <div class="mb-4">
                         <i class="fas fa-check-circle fa-5x text-success"></i>
                     </div>
-                    
+
                     <h2 class="text-success mb-4">تم تقديم طلب الإجازة بنجاح!</h2>
-                    
+
                     <div class="alert alert-success">
                         <p class="mb-0">
                             <strong>{{ user.name }}</strong>
@@ -21,14 +21,14 @@
                             تم استلام طلبك وسيتم مراجعته من قبل المشرف قريباً
                         </p>
                     </div>
-                    
+
                     <div class="mt-4">
                         <p class="text-muted">
                             <i class="fas fa-info-circle ms-1"></i>
                             يمكنك متابعة حالة طلبك من خلال الاستعلام برقم الهوية
                         </p>
                     </div>
-                    
+
                     <div class="d-grid gap-2 mt-4">
                         <a href="{{ url_for('employee.inquiry') }}" class="btn btn-islamic btn-lg">
                             <i class="fas fa-search ms-1"></i>
@@ -38,7 +38,16 @@
                             <i class="fas fa-plus ms-1"></i>
                             تقديم طلب آخر
                         </a>
-                        <a href="{{ url_for('index') }}" class="btn btn-islamic-outline">
+                    </div>
+                    <div class="mt-4">
+                        <button class="btn btn-warning btn-lg" id="enableNotificationsBtn">
+                            <i class="fas fa-bell ms-1"></i>
+                            تفعيل الإشعارات لمتابعة الطلب
+                        </button>
+                    </div>
+
+                    <div class="mt-3">
+                        <a href="{{ url_for('index') }}" class="btn btn-islamic btn-lg">
                             <i class="fas fa-home ms-1"></i>
                             العودة للصفحة الرئيسية
                         </a>
@@ -48,4 +57,75 @@
         </div>
     </div>
 </div>
+
+<script>
+    // حفظ رقم الهوية في localStorage
+    localStorage.setItem('emp_national_id', '{{ user.national_id }}');
+
+    // عند النقر على زر تفعيل الإشعارات
+    document.getElementById('enableNotificationsBtn').addEventListener('click', function () {
+        if ('serviceWorker' in navigator && 'PushManager' in window) {
+            navigator.serviceWorker.register('/sw.js')
+                .then(registration => {
+                    return Notification.requestPermission().then(permission => {
+                        if (permission === 'granted') {
+                            return subscribeEmployeeToPush(registration);
+                        } else {
+                            alert('❌ تم رفض تفعيل الإشعارات');
+                        }
+                    });
+                })
+                .then(() => {
+                    alert('✅ تم تفعيل الإشعارات بنجاح! سيتم إشعارك عند تحديث طلبك');
+                    document.getElementById('enableNotificationsBtn').classList.add('btn-success');
+                    document.getElementById('enableNotificationsBtn').classList.remove('btn-warning');
+                    document.getElementById('enableNotificationsBtn').innerHTML = '<i class="fas fa-check ms-1"></i> تم تفعيل الإشعارات';
+                    document.getElementById('enableNotificationsBtn').disabled = true;
+                })
+                .catch(err => {
+                    console.error('Error enabling notifications:', err);
+                    alert('حدث خطأ في تفعيل الإشعارات');
+                });
+        } else {
+            alert('متصفحك لا يدعم الإشعارات');
+        }
+    });
+
+    function subscribeEmployeeToPush(registration) {
+        return fetch('/vapid-public-key')
+            .then(response => response.json())
+            .then(data => {
+                const publicKey = data.publicKey;
+                const applicationServerKey = urlBase64ToUint8Array(publicKey);
+
+                return registration.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: applicationServerKey
+                });
+            })
+            .then(subscription => {
+                const national_id = localStorage.getItem('emp_national_id');
+                return fetch('/subscribe', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        subscription: subscription,
+                        national_id: national_id
+                    })
+                });
+            })
+            .then(response => response.json());
+    }
+
+    function urlBase64ToUint8Array(base64String) {
+        const padding = '='.repeat((4 - base64String.length % 4) % 4);
+        const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+        const rawData = window.atob(base64);
+        const outputArray = new Uint8Array(rawData.length);
+        for (let i = 0; i < rawData.length; ++i) {
+            outputArray[i] = rawData.charCodeAt(i);
+        }
+        return outputArray;
+    }
+</script>
 {% endblock %}

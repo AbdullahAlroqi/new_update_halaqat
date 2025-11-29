@@ -1,8 +1,8 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_file
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_from_directory, send_file
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from werkzeug.utils import secure_filename
 from config import Config
-from models import db, User, Role, LeaveRequest, LeaveType, Schedule, Attendance, SystemSettings, Notification, ActivityLog, AbsenceStatus
+from models import db, User, Role, LeaveRequest, LeaveType, Schedule, Attendance, SystemSettings, Notification, ActivityLog, AbsenceStatus, KhatmaRequest, PushSubscription
 from routes_employee import employee_bp
 from routes_supervisor import supervisor_bp
 from routes_admin import admin_bp
@@ -10,6 +10,7 @@ from routes_certificates import cert_bp
 from datetime import datetime, timedelta
 import os
 import openpyxl
+import json
 from functools import wraps
 
 app = Flask(__name__)
@@ -111,7 +112,12 @@ def index():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
-        return redirect(url_for('index'))
+        if current_user.role in [Role.MAIN_ADMIN, Role.SUB_ADMIN]:
+            return redirect(url_for('admin.dashboard'))
+        elif current_user.role == Role.MAIN_SUPERVISOR:
+            return redirect(url_for('supervisor.dashboard'))
+        else:
+            return redirect(url_for('employee.dashboard'))
     
     if request.method == 'POST':
         national_id = request.form.get('national_id')
@@ -122,12 +128,47 @@ def login():
         if user and user.check_password(password):
             login_user(user, remember=True)
             next_page = request.args.get('next')
-            flash(f'مرحباً بك {user.name}', 'success')
-            return redirect(next_page or url_for('index'))
+            
+            if next_page:
+                return redirect(next_page)
+                
+            # توجيه المستخدم حسب دوره
+            if user.role in [Role.MAIN_ADMIN, Role.SUB_ADMIN]:
+                return redirect(url_for('admin.dashboard'))
+            elif user.role == Role.MAIN_SUPERVISOR:
+                return redirect(url_for('supervisor.dashboard'))
+            else:
+                return redirect(url_for('employee.dashboard'))
         else:
             flash('رقم الهوية أو كلمة المرور غير صحيحة', 'danger')
     
     return render_template('login.html')
+
+@app.route('/api/check-notifications')
+def check_notifications():
+    """API endpoint to check for new notifications"""
+    count = 0
+    has_new = False
+    
+    # 1. للمستخدمين المسجلين
+    if current_user.is_authenticated:
+        # هنا يمكن إضافة منطق للتحقق من الإشعارات غير المقروءة في قاعدة البيانات
+        # حالياً سنعتمد على الإشعارات المدفوعة، لكن يمكن توسيع هذا
+        pass
+        
+    # 2. للموظفين غير المسجلين (عبر رقم الهوية)
+    national_id = request.args.get('national_id')
+    if national_id:
+        # تحقق من وجود اشتراك فعال
+        subscription = PushSubscription.query.filter_by(national_id=national_id).first()
+        if subscription:
+            # يمكن هنا التحقق من آخر نشاط أو تحديث
+            pass
+    
+    return jsonify({
+        'success': True,
+        'timestamp': datetime.utcnow().isoformat()
+    })
 
 # تسجيل الخروج
 @app.route('/logout')
@@ -136,6 +177,73 @@ def logout():
     logout_user()
     flash('تم تسجيل الخروج بنجاح', 'info')
     return redirect(url_for('index'))
+
+# Push Notifications Routes
+@app.route('/vapid-public-key')
+def vapid_public_key():
+    """إرجاع المفتاح العام VAPID للاشتراك"""
+    from config import Config
+    return jsonify({'publicKey': Config.VAPID_PUBLIC_KEY})
+
+@app.route('/subscribe', methods=['POST'])
+def subscribe():
+    """حفظ اشتراك المستخدم في الإشعارات"""
+    try:
+        data = request.get_json()
+        subscription_json = data.get('subscription')
+        national_id = data.get('national_id')  # للموظفين بدون تسجيل دخول
+        
+        if not subscription_json:
+            return jsonify({'success': False, 'message': 'No subscription data'}), 400
+        
+        # إذا كان مسجل دخول، استخدم user_id
+        if current_user.is_authenticated:
+            existing = PushSubscription.query.filter_by(
+                user_id=current_user.id
+            ).first()
+            
+            if existing:
+                existing.subscription_json = json.dumps(subscription_json)
+                existing.is_active = True
+                existing.updated_at = datetime.utcnow()
+            else:
+                new_subscription = PushSubscription(
+                    user_id=current_user.id,
+                    subscription_json=json.dumps(subscription_json)
+                )
+                db.session.add(new_subscription)
+        
+        # إذا لم يكن مسجل دخول، استخدم national_id
+        elif national_id:
+            existing = PushSubscription.query.filter_by(
+                national_id=national_id
+            ).first()
+            
+            if existing:
+                existing.subscription_json = json.dumps(subscription_json)
+                existing.is_active = True
+                existing.updated_at = datetime.utcnow()
+            else:
+                new_subscription = PushSubscription(
+                    national_id=national_id,
+                    subscription_json=json.dumps(subscription_json)
+                )
+                db.session.add(new_subscription)
+        else:
+            return jsonify({'success': False, 'message': 'User not authenticated and no national_id provided'}), 400
+        
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Subscription saved'})
+        
+    except Exception as e:
+        print(f"Error saving subscription: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+# Service Worker Route (must be at root for proper scope)
+@app.route('/sw.js')
+def service_worker():
+    """Serve the service worker from root for proper registration"""
+    return send_from_directory('static', 'sw.js', mimetype='application/javascript')
 
 if __name__ == '__main__':
     init_database()

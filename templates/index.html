@@ -14,6 +14,9 @@
                 <a href="{{ url_for('employee.leave_request') }}" class="btn btn-islamic btn-lg me-2">
                     <i class="fas fa-paper-plane ms-1"></i> تقديم طلب إجازة
                 </a>
+                <a href="{{ url_for('employee.khatma_request') }}" class="btn btn-islamic btn-lg me-2">
+                    <i class="fas fa-book-quran ms-1"></i> تقديم طلب ختمة
+                </a>
                 <a href="{{ url_for('employee.inquiry') }}" class="btn btn-islamic-outline btn-lg">
                     <i class="fas fa-search ms-1"></i> الاستعلام عن البيانات
                 </a>
@@ -21,7 +24,7 @@
             </div>
         </div>
     </div>
-    
+
     <div class="row mt-5">
         <div class="col-md-4 mb-4">
             <div class="card-islamic text-center h-100">
@@ -31,7 +34,7 @@
                     </div>
                     <h3>للموظفين</h3>
                     <p class="text-muted">
-                        الاستعلام عن الجداول، الإجازات، الحضور والغياب، وتقديم طلبات الإجازات
+                        الاستعلام عن الجداول، الإجازات، الحضور والغياب، وتقديم طلبات الإجازات والختمات
                     </p>
                     <div class="alert alert-success small">
                         <i class="fas fa-star ms-1"></i>
@@ -42,6 +45,9 @@
                         <a href="{{ url_for('employee.leave_request') }}" class="btn btn-islamic btn-sm">
                             <i class="fas fa-paper-plane ms-1"></i> تقديم إجازة
                         </a>
+                        <a href="{{ url_for('employee.khatma_request') }}" class="btn btn-islamic btn-sm">
+                            <i class="fas fa-book-quran ms-1"></i> تقديم طلب ختمة
+                        </a>
                         <a href="{{ url_for('employee.inquiry') }}" class="btn btn-islamic-outline btn-sm">
                             <i class="fas fa-search ms-1"></i> استعلام
                         </a>
@@ -50,56 +56,106 @@
                 </div>
             </div>
         </div>
-        
-    <div class="row mt-5">
-        <div class="col-md-12">
-            <div class="card-islamic">
-                <div class="card-header">
-                    <i class="fas fa-info-circle ms-2"></i>
-                    عن النظام
-                </div>
+
+        <div class="col-md-4 mb-4">
+            <div class="card-islamic text-center h-100">
                 <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <h5 class="text-primary mb-3">
-                                <i class="fas fa-star ms-2"></i>
-                                الميزات الرئيسية
-                            </h5>
-                            <ul class="list-unstyled">
-                                <li class="mb-2">
-                                    <i class="fas fa-check-circle text-success ms-2"></i>
-                                    إدارة شاملة للموظفين والمشرفين
-                                </li>
-                                <li class="mb-2">
-                                    <i class="fas fa-check-circle text-success ms-2"></i>
-                                    نظام متكامل للإجازات والموافقات
-                                </li>
-                                <li class="mb-2">
-                                    <i class="fas fa-check-circle text-success ms-2"></i>
-                                    تسجيل الحضور والغياب الإلكتروني
-                                </li>
-                                <li class="mb-2">
-                                    <i class="fas fa-check-circle text-success ms-2"></i>
-                                    تقارير تفصيلية وإحصائيات دقيقة
-                                </li>
-                                <li class="mb-2">
-                                    <i class="fas fa-check-circle text-success ms-2"></i>
-                                    واجهة سهلة ومتجاوبة مع جميع الأجهزة
-                                </li>
-                            </ul>
-                        </div>
-                        <div class="col-md-6">
-                            <h5 class="text-primary mb-3">
-                                <i class="fas fa-mobile-alt ms-2"></i>
-                                متوافق مع الجوال
-                            </h5>
-                            <p>
-                                النظام مصمم بتقنية PWA ليعمل بكفاءة على جميع الأجهزة المحمولة
-                                ويمكن حفظه على الشاشة الرئيسية للهاتف
-                            </p>
-                            <div class="alert alert-info mt-3">
-                                <i class="fas fa-lightbulb ms-2"></i>
-                                <strong>نصيحة:</strong> قم بحفظ النظام على شاشة هاتفك الرئيسية لتجربة أفضل
+                    <div class="mb-3">
+                        {% if current_user.is_authenticated %}
+                        <i class="fas fa-tachometer-alt fa-4x text-success"></i>
+                        {% else %}
+                        <i class="fas fa-sign-in-alt fa-4x text-primary"></i>
+                        {% endif %}
+                    </div>
+                    <h3>
+                        {% if current_user.is_authenticated %}
+                        لوحة التحكم
+                        {% else %}
+                        تسجيل الدخول
+                        {% endif %}
+                    </h3>
+                    <p class="text-muted">
+                        {% if current_user.is_authenticated %}
+                        الدخول إلى لوحة التحكم الخاصة بك
+                        {% else %}
+                        للمشرفين ومديري النظام
+                        {% endif %}
+                    </p>
+                    <div class="d-grid gap-2">
+                        {% if current_user.is_authenticated %}
+                        {% if current_user.role in ['مدير النظام الأساسي', 'مدير النظام الثانوي'] %}
+                        <a href="{{ url_for('admin.dashboard') }}" class="btn btn-success">
+                            <i class="fas fa-tachometer-alt ms-1"></i> لوحة التحكم
+                        </a>
+                        {% elif current_user.role == 'المشرف الرئيسي' %}
+                        <a href="{{ url_for('supervisor.dashboard') }}" class="btn btn-success">
+                            <i class="fas fa-tachometer-alt ms-1"></i> لوحة التحكم
+                        </a>
+                        {% else %}
+                        <a href="{{ url_for('employee.dashboard') }}" class="btn btn-success">
+                            <i class="fas fa-tachometer-alt ms-1"></i> لوحة التحكم
+                        </a>
+                        {% endif %}
+                        {% else %}
+                        <a href="{{ url_for('login') }}" class="btn btn-islamic">
+                            <i class="fas fa-sign-in-alt ms-1"></i> تسجيل الدخول
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mt-5">
+            <div class="col-md-12">
+                <div class="card-islamic">
+                    <div class="card-header">
+                        <i class="fas fa-info-circle ms-2"></i>
+                        عن النظام
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h5 class="text-primary mb-3">
+                                    <i class="fas fa-star ms-2"></i>
+                                    الميزات الرئيسية
+                                </h5>
+                                <ul class="list-unstyled">
+                                    <li class="mb-2">
+                                        <i class="fas fa-check-circle text-success ms-2"></i>
+                                        إدارة شاملة للموظفين والمشرفين
+                                    </li>
+                                    <li class="mb-2">
+                                        <i class="fas fa-check-circle text-success ms-2"></i>
+                                        نظام متكامل للإجازات والموافقات
+                                    </li>
+                                    <li class="mb-2">
+                                        <i class="fas fa-check-circle text-success ms-2"></i>
+                                        تسجيل الحضور والغياب الإلكتروني
+                                    </li>
+                                    <li class="mb-2">
+                                        <i class="fas fa-check-circle text-success ms-2"></i>
+                                        تقارير تفصيلية وإحصائيات دقيقة
+                                    </li>
+                                    <li class="mb-2">
+                                        <i class="fas fa-check-circle text-success ms-2"></i>
+                                        واجهة سهلة ومتجاوبة مع جميع الأجهزة
+                                    </li>
+                                </ul>
+                            </div>
+                            <div class="col-md-6">
+                                <h5 class="text-primary mb-3">
+                                    <i class="fas fa-mobile-alt ms-2"></i>
+                                    متوافق مع الجوال
+                                </h5>
+                                <p>
+                                    النظام مصمم بتقنية PWA ليعمل بكفاءة على جميع الأجهزة المحمولة
+                                    ويمكن حفظه على الشاشة الرئيسية للهاتف
+                                </p>
+                                <div class="alert alert-info mt-3">
+                                    <i class="fas fa-lightbulb ms-2"></i>
+                                    <strong>نصيحة:</strong> قم بحفظ النظام على شاشة هاتفك الرئيسية لتجربة أفضل
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -107,20 +163,19 @@
             </div>
         </div>
     </div>
-</div>
 
-<style>
-    /* PWA Install Button */
-    #installButton {
-        display: none;
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
-        z-index: 1000;
-    }
-</style>
+    <style>
+        /* PWA Install Button */
+        #installButton {
+            display: none;
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+    </style>
 
-<button id="installButton" class="btn btn-islamic btn-lg">
-    <i class="fas fa-download ms-1"></i> تثبيت التطبيق
-</button>
-{% endblock %}
+    <button id="installButton" class="btn btn-islamic btn-lg">
+        <i class="fas fa-download ms-1"></i> تثبيت التطبيق
+    </button>
+    {% endblock %}

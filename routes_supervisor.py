@@ -1,8 +1,9 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
-from models import db, User, Role, LeaveRequest, Schedule, Attendance, Notification
+from models import db, User, Role, LeaveRequest, Schedule, Attendance, Notification, KhatmaRequest
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
+import push_service
 
 supervisor_bp = Blueprint('supervisor', __name__, url_prefix='/supervisor')
 
@@ -91,6 +92,19 @@ def schedules():
                 db.session.add(schedule)
         
         db.session.commit()
+        
+        # إرسال إشعار للموظفين بتحديث الجداول
+        for emp_id in employees_data:
+            if emp_id:
+                emp = User.query.get(int(emp_id))
+                if emp:
+                    push_service.send_push_by_national_id(
+                        emp.national_id,
+                        'تحديث الجدول',
+                        'تم تحديث جدولك الدراسي',
+                        '/employee/my-schedule'
+                    )
+        
         flash('تم رفع الجداول بنجاح', 'success')
         return redirect(url_for('supervisor.schedules'))
     
@@ -218,6 +232,14 @@ def review_leave_request(request_id):
     
     db.session.add(notification)
     db.session.commit()
+    
+    # إرسال إشعار push للموظف
+    push_service.send_push_by_national_id(
+        leave_request.employee.national_id,
+        'تحديث على طلب الإجازة',
+        message,
+        '/employee/my-leaves'
+    )
     
     flash(f'تم {"قبول" if action == "approve" else "رفض"} الطلب بنجاح', 'success')
     return redirect(url_for('supervisor.leave_requests'))
@@ -407,3 +429,97 @@ def assign_to_subs():
     return render_template('supervisor/assign_to_subs.html', 
                           sub_supervisors=sub_supervisors,
                           employees=employees)
+
+# إدارة طلبات الختمة
+@supervisor_bp.route('/khatma-requests')
+@login_required
+def khatma_requests():
+    if current_user.role != Role.MAIN_SUPERVISOR:
+        flash('ليس لديك صلاحية للوصول إلى هذه الصفحة', 'danger')
+        return redirect(url_for('index'))
+    
+    # الفلاتر
+    status_filter = request.args.get('status', '')
+    
+    query = KhatmaRequest.query
+    
+    if status_filter:
+        query = query.filter_by(status=status_filter)
+    
+    requests_list = query.order_by(KhatmaRequest.created_at.desc()).all()
+    
+    return render_template('supervisor/khatma_requests.html', requests=requests_list)
+
+# الموافقة على طلب ختمة
+@supervisor_bp.route('/khatma-request/<int:request_id>/approve', methods=['POST'])
+@login_required
+def approve_khatma_request(request_id):
+    if current_user.role != Role.MAIN_SUPERVISOR:
+        return jsonify({'success': False, 'message': 'ليس لديك صلاحية'}), 403
+    
+    khatma_req = KhatmaRequest.query.get_or_404(request_id)
+    
+    try:
+        # حفظ التاريخ الأصلي إذا لم يكن محفوظاً
+        if not khatma_req.original_date:
+            khatma_req.original_date = khatma_req.khatma_date
+        
+        # تحديث التاريخ إذا تم تغييره
+        new_date_str = request.form.get('new_date')
+        if new_date_str:
+            new_date = datetime.strptime(new_date_str, '%Y-%m-%d').date()
+            khatma_req.khatma_date = new_date
+        
+        khatma_req.status = 'مقبول'
+        khatma_req.reviewed_by = current_user.id
+        khatma_req.reviewed_at = datetime.utcnow()
+        khatma_req.review_notes = request.form.get('notes', '')
+        
+        db.session.commit()
+        
+        # إرسال إشعار للموظف
+        push_service.send_push_by_national_id(
+            khatma_req.employee.national_id,
+            'تحديث على طلب الختمة',
+            f'تم قبول طلب الختمة للطالب {khatma_req.student_name}',
+            '/employee/dashboard'
+        )
+        
+        flash('تم قبول طلب الختمة بنجاح', 'success')
+        return jsonify({'success': True})
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+# رفض طلب ختمة
+@supervisor_bp.route('/khatma-request/<int:request_id>/reject', methods=['POST'])
+@login_required
+def reject_khatma_request(request_id):
+    if current_user.role != Role.MAIN_SUPERVISOR:
+        return jsonify({'success': False, 'message': 'ليس لديك صلاحية'}), 403
+    
+    khatma_req = KhatmaRequest.query.get_or_404(request_id)
+    
+    try:
+        khatma_req.status = 'مرفوض'
+        khatma_req.reviewed_by = current_user.id
+        khatma_req.reviewed_at = datetime.utcnow()
+        khatma_req.review_notes = request.form.get('notes', '')
+        
+        db.session.commit()
+        
+        # إرسال إشعار للموظف
+        push_service.send_push_by_national_id(
+            khatma_req.employee.national_id,
+            'تحديث على طلب الختمة',
+            f'تم رفض طلب الختمة للطالب {khatma_req.student_name}',
+            '/employee/dashboard'
+        )
+        
+        flash('تم رفض طلب الختمة', 'info')
+        return jsonify({'success': True})
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500

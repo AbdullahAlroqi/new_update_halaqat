@@ -10,3 +10,4 @@ reportlab==4.0.7
 arabic-reshaper==3.0.0
 python-bidi==0.4.2
 pytz==2023.3
+pywebpush==1.14.0

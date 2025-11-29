@@ -1,9 +1,10 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
-from models import db, User, Role, LeaveRequest, LeaveType, Schedule, Attendance
+from models import db, User, Role, LeaveRequest, LeaveType, Schedule, Attendance, KhatmaRequest
 from datetime import datetime, timedelta
 from werkzeug.utils import secure_filename
 import os
+import push_service
 
 employee_bp = Blueprint('employee', __name__, url_prefix='/employee')
 
@@ -132,6 +133,13 @@ def leave_request():
         db.session.add(leave_req)
         db.session.commit()
         
+        # إرسال إشعار للإدارة والمشرفين الرئيسيين
+        push_service.send_to_admins_and_supervisors(
+            'طلب إجازة جديد',
+            f'طلب إجازة جديد من {user.name}',
+            '/admin/leave_requests'
+        )
+        
         flash('تم تقديم طلب الإجازة بنجاح', 'success')
         return render_template('employee/leave_request_success.html', user=user)
     
@@ -178,3 +186,46 @@ def my_attendance():
     ).order_by(Attendance.date.desc()).all()
     
     return render_template('employee/my_attendance.html', attendance=attendance)
+
+# طلب ختمة (بدون تسجيل دخول)
+@employee_bp.route('/khatma-request', methods=['GET', 'POST'])
+def khatma_request():
+    if request.method == 'POST':
+        national_id = request.form.get('national_id')
+        if not national_id:
+            flash('الرجاء إدخال رقم الهوية', 'danger')
+            return redirect(url_for('employee.khatma_request'))
+        
+        user = User.query.filter_by(national_id=national_id, role=Role.EMPLOYEE).first()
+        if not user:
+            flash('رقم الهوية غير صحيح', 'danger')
+            return redirect(url_for('employee.khatma_request'))
+        
+        student_name = request.form.get('student_name')
+        khatma_date = datetime.strptime(request.form.get('khatma_date'), '%Y-%m-%d').date()
+        riwaya_type = request.form.get('riwaya_type')
+        additional_info = request.form.get('additional_info')
+        
+        # إنشاء الطلب
+        khatma_req = KhatmaRequest(
+            employee_id=user.id,
+            student_name=student_name,
+            khatma_date=khatma_date,
+            riwaya_type=riwaya_type,
+            additional_info=additional_info
+        )
+        
+        db.session.add(khatma_req)
+        db.session.commit()
+        
+        # إرسال إشعار للإدارة والمشرفين الرئيسيين
+        push_service.send_to_admins_and_supervisors(
+            'طلب ختمة جديد',
+            f'طلب ختمة جديد من {user.name} للطالب {student_name}',
+            '/admin/khatma-requests'
+        )
+        
+        flash('تم تقديم طلب الختمة بنجاح', 'success')
+        return render_template('employee/khatma_request_success.html', user=user, request_data=khatma_req)
+    
+    return render_template('employee/khatma_request.html')
