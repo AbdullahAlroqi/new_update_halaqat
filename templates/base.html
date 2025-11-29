@@ -315,7 +315,6 @@
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
 
     <!-- Push Notifications Logic -->
-    {% if current_user.is_authenticated %}
     <script>
         let serviceWorkerRegistration = null;
 
@@ -347,15 +346,15 @@
             if (Notification.permission === 'granted') {
                 // الإشعارات مفعلة
                 bellIcon.className = 'fas fa-bell text-success';
-                badge.style.display = 'none';
+                if (badge) badge.style.display = 'none';
             } else if (Notification.permission === 'denied') {
                 // تم رفض الإشعارات
                 bellIcon.className = 'fas fa-bell-slash text-danger';
-                badge.style.display = 'none';
+                if (badge) badge.style.display = 'none';
             } else {
                 // لم يتم طلب الإذن بعد
                 bellIcon.className = 'fas fa-bell text-warning';
-                badge.style.display = 'inline-block';
+                if (badge) badge.style.display = 'inline-block';
             }
         }
 
@@ -378,7 +377,7 @@
             }
         });
 
-        function requestNotificationPermission(registration) {
+        function requestNotificationPermission(registration, nationalId = null) {
             if (!registration) {
                 alert('يرجى الانتظار حتى يتم تحميل النظام...');
                 return;
@@ -389,7 +388,7 @@
 
                 if (permission === 'granted') {
                     console.log('Notification permission granted');
-                    subscribeUserToPush(registration);
+                    subscribeUserToPush(registration, nationalId);
                     alert('✅ تم تفعيل الإشعارات بنجاح!');
                 } else {
                     console.log('Notification permission denied');
@@ -398,7 +397,7 @@
             });
         }
 
-        function subscribeUserToPush(registration) {
+        function subscribeUserToPush(registration, nationalId = null) {
             // الحصول على المفتاح العام VAPID
             fetch('/vapid-public-key')
                 .then(response => response.json())
@@ -415,13 +414,22 @@
                 .then(function (subscription) {
                     console.log('User is subscribed:', subscription);
 
+                    // إعداد البيانات للإرسال
+                    const payload = {
+                        subscription: subscription
+                    };
+
+                    if (nationalId) {
+                        payload.national_id = nationalId;
+                    }
+
                     // إرسال الاشتراك للسيرفر
                     return fetch('/subscribe', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
                         },
-                        body: JSON.stringify(subscription)
+                        body: JSON.stringify(payload)
                     });
                 })
                 .then(response => response.json())
@@ -468,7 +476,7 @@
             }
         };
     </script>
-    {% endif %}
+
 
     {% block extra_js %}{% endblock %}
     <!-- Polling for Notifications & Session Keep-alive -->

@@ -1792,3 +1792,21 @@ def reject_khatma_request(request_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': str(e)}), 500
+
+# إرسال إشعار تجريبي (للمدير الحالي)
+@admin_bp.route('/test-notification', methods=['POST'])
+@login_required
+def test_notification():
+    if not admin_required():
+        return jsonify({'success': False, 'message': 'ليس لديك صلاحية'}), 403
+    
+    try:
+        push_service.send_push_notification(
+            current_user.id,
+            'تجربة الإشعارات',
+            'هذا إشعار تجريبي للتأكد من عمل النظام بشكل صحيح ✅',
+            '/admin/dashboard'
+        )
+        return jsonify({'success': True, 'message': 'تم إرسال الإشعار التجريبي'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500

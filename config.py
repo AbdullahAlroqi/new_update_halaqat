@@ -39,7 +39,7 @@ class Config:
     ]
     
     # VAPID Keys for Push Notifications
-    VAPID_PRIVATE_KEY = 'Pd1TWGjtiW7g4Lh6fB_gSNZa7VN3YVRYN H7_QUN0wkU'
+    VAPID_PRIVATE_KEY = 'Pd1TWGjtiW7g4Lh6fB_gSNZa7VN3YVRYNH7_QUN0wkU'
     VAPID_PUBLIC_KEY = 'BOCp1i9BL1HrGsp_anwxlQlUdLzKVKEW3-zDhcJtyuucoAfS_1sV6wBQH12YWLcSBQ8j1R8UyAnANCnFrfhjWlA'
     VAPID_CLAIMS_SUB = 'mailto:halaqat@example.com'
     
