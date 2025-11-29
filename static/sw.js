@@ -29,12 +29,21 @@ self.addEventListener('activate', event => {
     );
 });
 
-// التعامل مع الطلبات
+// التعامل مع الطلبات - استراتيجية Network First
 self.addEventListener('fetch', event => {
     event.respondWith(
-        caches.match(event.request)
+        fetch(event.request)
             .then(response => {
-                return response || fetch(event.request);
+                // حفظ نسخة جديدة في الكاش
+                const responseClone = response.clone();
+                caches.open(CACHE_NAME).then(cache => {
+                    cache.put(event.request, responseClone);
+                });
+                return response;
+            })
+            .catch(() => {
+                // إذا فشل الاتصال، استخدم الكاش
+                return caches.match(event.request);
             })
     );
 });
