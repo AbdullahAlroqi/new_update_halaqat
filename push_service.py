@@ -87,7 +87,8 @@ def _send_to_subscriptions(subscriptions, title, body, url=None, icon=None):
                 subscription_info=subscription_info,
                 data=json.dumps(notification_data),
                 vapid_private_key=Config.VAPID_PRIVATE_KEY,
-                vapid_claims=vapid_claims
+                vapid_claims=vapid_claims,
+                headers={"Urgency": "high"}
             )
             print(f"✓ Push notification sent")
             

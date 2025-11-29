@@ -195,54 +195,47 @@ def subscribe():
         
         if not subscription_json:
             return jsonify({'success': False, 'message': 'No subscription data'}), 400
-        
-        # إذا كان مسجل دخول، استخدم user_id
+            
+        endpoint = subscription_json.get('endpoint', '')
+        if not endpoint:
+            return jsonify({'success': False, 'message': 'Invalid subscription data'}), 400
+
+        # البحث عن أي اشتراك موجود بنفس الـ endpoint (بغض النظر عن المستخدم)
+        # هذا يحل مشكلة تعدد الحسابات على نفس الجهاز
+        existing_global = PushSubscription.query.filter(
+            PushSubscription.subscription_json.like(f'%{endpoint}%')
+        ).first()
+
+        if existing_global:
+            # تحديث الاشتراك الموجود
+            existing_global.subscription_json = json.dumps(subscription_json)
+            existing_global.is_active = True
+            existing_global.updated_at = datetime.utcnow()
+            
+            # تحديث المالك
+            if current_user.is_authenticated:
+                existing_global.user_id = current_user.id
+                existing_global.national_id = None # إزالة ارتباط الهوية إذا سجل دخول
+            elif national_id:
+                existing_global.national_id = national_id
+                existing_global.user_id = None # إزالة ارتباط المستخدم إذا كان دخول بهوية
+            
+            db.session.commit()
+            return jsonify({'success': True, 'message': 'Subscription updated'})
+
+        # إذا لم يكن موجوداً، ننشئ واحد جديد
         if current_user.is_authenticated:
-            # البحث عن اشتراك مطابق تماماً (لنفس الجهاز/المتصفح)
-            endpoint = subscription_json.get('endpoint', '')
-            existing = None
-            
-            if endpoint:
-                existing = PushSubscription.query.filter(
-                    PushSubscription.user_id == current_user.id,
-                    PushSubscription.subscription_json.like(f'%{endpoint}%')
-                ).first()
-            
-            # إذا لم نجد تطابق دقيق، نبحث عن النص الكامل
-            if not existing:
-                existing = PushSubscription.query.filter_by(
-                    user_id=current_user.id,
-                    subscription_json=json.dumps(subscription_json)
-                ).first()
-            
-            if existing:
-                existing.subscription_json = json.dumps(subscription_json)
-                existing.is_active = True
-                existing.updated_at = datetime.utcnow()
-            else:
-                new_subscription = PushSubscription(
-                    user_id=current_user.id,
-                    subscription_json=json.dumps(subscription_json)
-                )
-                db.session.add(new_subscription)
-        
-        # إذا لم يكن مسجل دخول، استخدم national_id
+            new_subscription = PushSubscription(
+                user_id=current_user.id,
+                subscription_json=json.dumps(subscription_json)
+            )
+            db.session.add(new_subscription)
         elif national_id:
-            existing = PushSubscription.query.filter_by(
+            new_subscription = PushSubscription(
                 national_id=national_id,
                 subscription_json=json.dumps(subscription_json)
-            ).first()
-            
-            if existing:
-                existing.subscription_json = json.dumps(subscription_json)
-                existing.is_active = True
-                existing.updated_at = datetime.utcnow()
-            else:
-                new_subscription = PushSubscription(
-                    national_id=national_id,
-                    subscription_json=json.dumps(subscription_json)
-                )
-                db.session.add(new_subscription)
+            )
+            db.session.add(new_subscription)
         else:
             return jsonify({'success': False, 'message': 'User not authenticated and no national_id provided'}), 400
         

@@ -1481,6 +1481,14 @@ def edit_employee_schedule(employee_id):
         # تسجيل النشاط
         log_activity('تعديل جدول', 'موظف', employee.id, f'تم تعديل جدول الموظف: {employee.name}')
         
+        # إرسال إشعار للموظف
+        push_service.send_push_by_national_id(
+            employee.national_id,
+            'تحديث الجدول',
+            'تم تحديث جدول العمل الخاص بك',
+            '/employee/my-schedule'
+        )
+        
         flash('تم تعديل جدول الموظف بنجاح', 'success')
         return redirect(url_for('admin.schedules_table'))
     
