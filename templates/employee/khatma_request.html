@@ -74,100 +74,21 @@
                     </form>
                 </div>
             </div>
-            {% extends "base.html" %}
+        </div>
+    </div>
+</div>
 
-            {% block content %}
-            <div class="container">
-                <div class="row justify-content-center">
-                    <div class="col-md-8">
-                        <div class="card-islamic">
-                            <div class="card-header">
-                                <i class="fas fa-book-quran ms-2"></i>
-                                تقديم طلب ختمة
-                            </div>
-                            <div class="card-body">
-                                <div class="alert alert-info">
-                                    <i class="fas fa-info-circle ms-2"></i>
-                                    يمكنك تقديم طلب ختمة بدون تسجيل دخول. فقط أدخل رقم هويتك الوطنية وبيانات الطلب.
-                                </div>
+<script>
+    // تعبئة رقم الهوية تلقائياً من آخر طلب
+    document.addEventListener('DOMContentLoaded', function () {
+        const lastNationalId = localStorage.getItem('emp_national_id');
+        if (lastNationalId) {
+            document.getElementById('national_id').value = lastNationalId;
+        }
 
-                                <form method="POST" action="{{ url_for('employee.khatma_request') }}">
-                                    <div class="mb-3">
-                                        <label for="national_id" class="form-label">
-                                            <i class="fas fa-id-card ms-1"></i>
-                                            رقم هويتك الوطنية
-                                        </label>
-                                        <input type="text" class="form-control" id="national_id" name="national_id"
-                                            required maxlength="10" pattern="[0-9]{10}"
-                                            placeholder="أدخل رقم الهوية (10 أرقام)">
-                                        <small class="form-text text-muted">يجب أن يكون رقم الهوية مكون من 10
-                                            أرقام</small>
-                                    </div>
-
-                                    <div class="mb-3">
-                                        <label for="student_name" class="form-label">
-                                            <i class="fas fa-user ms-1"></i>
-                                            اسم الطالب
-                                        </label>
-                                        <input type="text" class="form-control" id="student_name" name="student_name"
-                                            required placeholder="أدخل اسم الطالب">
-                                    </div>
-
-                                    <div class="mb-3">
-                                        <label for="khatma_date" class="form-label">
-                                            <i class="fas fa-calendar ms-1"></i>
-                                            تاريخ الختمة
-                                        </label>
-                                        <input type="date" class="form-control" id="khatma_date" name="khatma_date"
-                                            required>
-                                    </div>
-
-                                    <div class="mb-3">
-                                        <label for="riwaya_type" class="form-label">
-                                            <i class="fas fa-book ms-1"></i>
-                                            الرواية
-                                        </label>
-                                        <input type="text" class="form-control" id="riwaya_type" name="riwaya_type"
-                                            required placeholder="مثال: رواية حفص عن عاصم">
-                                    </div>
-
-                                    <div class="mb-3">
-                                        <label for="additional_info" class="form-label">
-                                            <i class="fas fa-comment ms-1"></i>
-                                            معلومات إضافية (اختياري)
-                                        </label>
-                                        <textarea class="form-control" id="additional_info" name="additional_info"
-                                            rows="3" placeholder="أي معلومات إضافية تود ذكرها"></textarea>
-                                    </div>
-
-                                    <div class="d-grid gap-2">
-                                        <button type="submit" class="btn btn-islamic btn-lg">
-                                            <i class="fas fa-paper-plane ms-1"></i>
-                                            تقديم الطلب
-                                        </button>
-                                        <a href="{{ url_for('index') }}" class="btn btn-islamic-outline">
-                                            <i class="fas fa-arrow-right ms-1"></i>
-                                            العودة للصفحة الرئيسية
-                                        </a>
-                                    </div>
-                                </form>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <script>
-                // تعبئة رقم الهوية تلقائياً من آخر طلب
-                document.addEventListener('DOMContentLoaded', function () {
-                    const lastNationalId = localStorage.getItem('emp_national_id');
-                    if (lastNationalId) {
-                        document.getElementById('national_id').value = lastNationalId;
-                    }
-
-                    // تعيين الحد الأدنى للتاريخ إلى اليوم
-                    const today = new Date().toISOString().split('T')[0];
-                    document.getElementById('khatma_date').setAttribute('min', today);
-                });
-            </script>
-            {% endblock %}
+        // تعيين الحد الأدنى للتاريخ إلى اليوم
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('khatma_date').setAttribute('min', today);
+    });
+</script>
+{% endblock %}
