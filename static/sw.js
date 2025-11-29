@@ -1,5 +1,5 @@
 // Service Worker for PWA and Push Notifications
-const CACHE_NAME = 'halaqat-v1';
+const CACHE_NAME = 'halaqat-v2'; // تم التحديث لإجبار المتصفح على تحديث الكاش
 const urlsToCache = [
     '/',
     '/static/css/style.css',
@@ -42,7 +42,7 @@ self.addEventListener('fetch', event => {
 // استقبال الإشعارات Push
 self.addEventListener('push', event => {
     console.log('Push notification received:', event);
-    
+
     let data = {
         title: 'إشعار جديد',
         body: 'لديك إشعار جديد',
@@ -50,7 +50,7 @@ self.addEventListener('push', event => {
         badge: '/static/images/badge.png',
         url: '/'
     };
-    
+
     if (event.data) {
         try {
             data = event.data.json();
@@ -58,7 +58,7 @@ self.addEventListener('push', event => {
             console.error('Error parsing notification data:', e);
         }
     }
-    
+
     const options = {
         body: data.body,
         icon: data.icon || '/static/images/logo.png',
@@ -72,7 +72,7 @@ self.addEventListener('push', event => {
         dir: 'rtl', // للغة العربية
         lang: 'ar'
     };
-    
+
     event.waitUntil(
         self.registration.showNotification(data.title, options)
     );
@@ -81,27 +81,27 @@ self.addEventListener('push', event => {
 // التعامل مع النقر على الإشعار
 self.addEventListener('notificationclick', event => {
     console.log('Notification clicked:', event);
-    
+
     event.notification.close();
-    
+
     const urlToOpen = event.notification.data.url || '/';
-    
+
     event.waitUntil(
         clients.matchAll({
             type: 'window',
             includeUncontrolled: true
         })
-        .then(windowClients => {
-            // البحث عن نافذة مفتوحة بالفعل
-            for (let client of windowClients) {
-                if (client.url === urlToOpen && 'focus' in client) {
-                    return client.focus();
+            .then(windowClients => {
+                // البحث عن نافذة مفتوحة بالفعل
+                for (let client of windowClients) {
+                    if (client.url === urlToOpen && 'focus' in client) {
+                        return client.focus();
+                    }
                 }
-            }
-            // فتح نافذة جديدة إذا لم تكن موجودة
-            if (clients.openWindow) {
-                return clients.openWindow(urlToOpen);
-            }
-        })
+                // فتح نافذة جديدة إذا لم تكن موجودة
+                if (clients.openWindow) {
+                    return clients.openWindow(urlToOpen);
+                }
+            })
     );
 });
