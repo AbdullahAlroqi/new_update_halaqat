@@ -972,13 +972,35 @@ def review_leave(request_id):
             log_activity('خصم رصيد إجازة', 'user', employee.id, 
                         f'تم خصم {leave_request.days_count} يوم من رصيد {employee.name} (نوع: {leave_request.leave_type.name})')
         
+        message = f'تم قبول طلب إجازتك من {leave_request.start_date} إلى {leave_request.end_date}'
         flash('تم قبول طلب الإجازة بنجاح', 'success')
+        
     elif action == 'reject':
         leave_request.status = 'مرفوض'
         leave_request.reviewed_by = current_user.id
         leave_request.reviewed_at = datetime.now()
         leave_request.review_notes = notes
+        
+        message = f'تم رفض طلب إجازتك من {leave_request.start_date} إلى {leave_request.end_date}'
         flash('تم رفض طلب الإجازة', 'warning')
+    
+    # إنشاء تنبيه للموظف
+    notification = Notification(
+        user_id=leave_request.employee_id,
+        title='تحديث على طلب الإجازة',
+        message=message,
+        related_type='leave_request',
+        related_id=leave_request.id
+    )
+    db.session.add(notification)
+    
+    # إرسال إشعار push للموظف
+    push_service.send_push_by_national_id(
+        leave_request.employee.national_id,
+        'تحديث على طلب الإجازة',
+        message,
+        '/employee/my-leaves'
+    )
     
     db.session.commit()
     
