@@ -75,7 +75,7 @@ def _send_to_subscriptions(subscriptions, title, body, url=None, icon=None):
     }
     
     vapid_claims = {
-        "sub": Config.VAPID_CLAIMS_SUB
+        "sub": "mailto:admin@halaqat.com"
     }
     
     # إرسال الإشعار لكل اشتراك
