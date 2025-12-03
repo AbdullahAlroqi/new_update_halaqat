@@ -35,6 +35,28 @@
                                 placeholder="أدخل اسم الطالب">
                         </div>
 
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="student_id" class="form-label">
+                                    <i class="fas fa-id-badge ms-1"></i>
+                                    رقم الطالب
+                                </label>
+                                <input type="text" class="form-control" id="student_id" name="student_id" required
+                                    placeholder="أدخل رقم الطالب">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="student_type" class="form-label">
+                                    <i class="fas fa-user-tag ms-1"></i>
+                                    نوع الطالب
+                                </label>
+                                <select class="form-select" id="student_type" name="student_type" required>
+                                    <option value="" selected disabled>اختر نوع الطالب</option>
+                                    <option value="دائم">دائم</option>
+                                    <option value="زائر">زائر</option>
+                                </select>
+                            </div>
+                        </div>
+
                         <div class="mb-3">
                             <label for="khatma_date" class="form-label">
                                 <i class="fas fa-calendar ms-1"></i>

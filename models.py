@@ -263,6 +263,8 @@ class KhatmaRequest(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     employee_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     student_name = db.Column(db.String(100), nullable=False)
+    student_type = db.Column(db.String(50))  # دائم، زائر، إلخ
+    student_id = db.Column(db.String(20))  # رقم الطالب
     khatma_date = db.Column(db.Date, nullable=False)
     original_date = db.Column(db.Date)  # التاريخ الأصلي في حالة تغيير التاريخ
     riwaya_type = db.Column(db.String(100), nullable=False)  # نوع الرواية
@@ -274,7 +276,7 @@ class KhatmaRequest(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     # العلاقات
-    employee = db.relationship('User', foreign_keys=[employee_id], backref='khatma_requests')
+    employee = db.relationship('User', foreign_keys=[employee_id], backref=db.backref('khatma_requests', cascade='all, delete-orphan'))
     reviewer = db.relationship('User', foreign_keys=[reviewed_by])
     
     def __repr__(self):

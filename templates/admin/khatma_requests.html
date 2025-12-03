@@ -36,6 +36,8 @@
                                     <th>#</th>
                                     <th>اسم الموظف</th>
                                     <th>اسم الطالب</th>
+                                    <th>رقم الطالب</th>
+                                    <th>نوع الطالب</th>
                                     <th>تاريخ الختمة</th>
                                     <th>الرواية</th>
                                     <th>معلومات إضافية</th>
@@ -51,6 +53,8 @@
                                     <td>{{ req.id }}</td>
                                     <td>{{ req.employee.name }}</td>
                                     <td>{{ req.student_name }}</td>
+                                    <td>{{ req.student_id or '-' }}</td>
+                                    <td>{{ req.student_type or '-' }}</td>
                                     <td>
                                         {{ req.khatma_date.strftime('%Y/%m/%d') }}
                                         {% if req.original_date and req.original_date != req.khatma_date %}
@@ -89,7 +93,7 @@
                                 {% endfor %}
                                 {% else %}
                                 <tr>
-                                    <td colspan="9" class="text-center">لا توجد طلبات</td>
+                                    <td colspan="11" class="text-center">لا توجد طلبات</td>
                                 </tr>
                                 {% endif %}
                             </tbody>

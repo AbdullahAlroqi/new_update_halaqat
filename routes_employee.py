@@ -108,6 +108,14 @@ def leave_request():
         if total_days + days_count > leave_type.max_days:
             flash(f'تجاوزت الحد المسموح للإجازات ({leave_type.max_days} يوم). الرجاء التواصل مع الإدارة', 'danger')
             return redirect(url_for('employee.leave_request'))
+            
+        # التحقق من المدة الزمنية بين الطلبات (ساعة واحدة)
+        last_request = LeaveRequest.query.filter_by(employee_id=user.id).order_by(LeaveRequest.created_at.desc()).first()
+        if last_request and (datetime.utcnow() - last_request.created_at) < timedelta(hours=1):
+            remaining_time = timedelta(hours=1) - (datetime.utcnow() - last_request.created_at)
+            minutes = int(remaining_time.total_seconds() / 60)
+            flash(f'عذراً، لا يمكنك تقديم طلب جديد إلا بعد مرور ساعة. يرجى الانتظار {minutes} دقيقة.', 'warning')
+            return redirect(url_for('employee.leave_request'))
         
         # إنشاء الطلب
         leave_req = LeaveRequest(
@@ -202,14 +210,26 @@ def khatma_request():
             return redirect(url_for('employee.khatma_request'))
         
         student_name = request.form.get('student_name')
+        student_type = request.form.get('student_type')
+        student_id = request.form.get('student_id')
         khatma_date = datetime.strptime(request.form.get('khatma_date'), '%Y-%m-%d').date()
         riwaya_type = request.form.get('riwaya_type')
         additional_info = request.form.get('additional_info')
+        
+        # التحقق من المدة الزمنية بين الطلبات (ساعة واحدة)
+        last_request = KhatmaRequest.query.filter_by(employee_id=user.id).order_by(KhatmaRequest.created_at.desc()).first()
+        if last_request and (datetime.utcnow() - last_request.created_at) < timedelta(hours=1):
+            remaining_time = timedelta(hours=1) - (datetime.utcnow() - last_request.created_at)
+            minutes = int(remaining_time.total_seconds() / 60)
+            flash(f'عذراً، لا يمكنك تقديم طلب جديد إلا بعد مرور ساعة. يرجى الانتظار {minutes} دقيقة.', 'warning')
+            return redirect(url_for('employee.khatma_request'))
         
         # إنشاء الطلب
         khatma_req = KhatmaRequest(
             employee_id=user.id,
             student_name=student_name,
+            student_type=student_type,
+            student_id=student_id,
             khatma_date=khatma_date,
             riwaya_type=riwaya_type,
             additional_info=additional_info

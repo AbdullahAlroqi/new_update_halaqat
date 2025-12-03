@@ -90,7 +90,7 @@ def _send_to_subscriptions(subscriptions, title, body, url=None, icon=None):
                 vapid_claims=vapid_claims,
                 headers={"Urgency": "high"}
             )
-            print(f"✓ Push notification sent")
+            print(f"✓ Push notification sent to subscription {subscription.id}")
             
         except WebPushException as e:
             print(f"✗ Failed to send push notification: {e}")
@@ -128,9 +128,28 @@ def send_to_admins_and_supervisors(title, body, url=None):
     """
     إرسال إشعار للمدراء والمشرفين الرئيسيين
     """
-    users = User.query.filter(
-        User.role.in_([Role.MAIN_ADMIN, Role.SUB_ADMIN, Role.MAIN_SUPERVISOR])
-    ).all()
-    
-    for user in users:
-        send_push_notification(user.id, title, body, url)
+    try:
+        users = User.query.filter(
+            User.role.in_([Role.MAIN_ADMIN, Role.SUB_ADMIN, Role.MAIN_SUPERVISOR])
+        ).all()
+        
+        user_ids = [u.id for u in users]
+        print(f"DEBUG: Found {len(users)} admins/supervisors to notify: {user_ids}")
+        
+        if not user_ids:
+            return
+
+        # Fetch all active subscriptions for these users
+        subscriptions = PushSubscription.query.filter(
+            PushSubscription.user_id.in_(user_ids),
+            PushSubscription.is_active == True
+        ).all()
+        
+        print(f"DEBUG: Found {len(subscriptions)} active subscriptions for these users")
+        
+        _send_to_subscriptions(subscriptions, title, body, url)
+        
+    except Exception as e:
+        print(f"Error in send_to_admins_and_supervisors: {e}")
+        import traceback
+        traceback.print_exc()
