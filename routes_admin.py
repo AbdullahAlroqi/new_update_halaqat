@@ -1729,21 +1729,26 @@ def approve_khatma_request(request_id):
     khatma_req = KhatmaRequest.query.get_or_404(request_id)
     
     try:
+        # تحضير القيم للتحديث
+        update_values = {
+            'status': 'مقبول',
+            'reviewed_by': current_user.id,
+            'reviewed_at': datetime.utcnow(),
+            'review_notes': request.form.get('notes', '')
+        }
+        
         # حفظ التاريخ الأصلي إذا لم يكن محفوظاً
         if not khatma_req.original_date:
-            khatma_req.original_date = khatma_req.khatma_date
+            update_values['original_date'] = khatma_req.khatma_date
         
         # تحديث التاريخ إذا تم تغييره
         new_date_str = request.form.get('new_date')
         if new_date_str:
             new_date = datetime.strptime(new_date_str, '%Y-%m-%d').date()
-            khatma_req.khatma_date = new_date
-        
-        khatma_req.status = 'مقبول'
-        khatma_req.reviewed_by = current_user.id
-        khatma_req.reviewed_at = datetime.utcnow()
-        khatma_req.review_notes = request.form.get('notes', '')
-        
+            update_values['khatma_date'] = new_date
+            
+        # استخدام update بدلاً من تعديل الكائن لتجنب مشاكل IntegrityError
+        KhatmaRequest.query.filter_by(id=request_id).update(update_values)
         db.session.commit()
         
         # تسجيل النشاط
@@ -1751,18 +1756,22 @@ def approve_khatma_request(request_id):
                     f'تمت الموافقة على طلب ختمة للطالب: {khatma_req.student_name}')
         
         # إرسال إشعار للموظف
-        push_service.send_push_by_national_id(
-            khatma_req.employee.national_id,
-            'تحديث على طلب الختمة',
-            f'تم قبول طلب الختمة للطالب {khatma_req.student_name}',
-            '/employee/dashboard'
-        )
+        # نعيد جلب الموظف للتأكد من البيانات
+        employee = User.query.get(khatma_req.employee_id)
+        if employee:
+            push_service.send_push_by_national_id(
+                employee.national_id,
+                'تحديث على طلب الختمة',
+                f'تم قبول طلب الختمة للطالب {khatma_req.student_name}',
+                '/employee/dashboard'
+            )
         
         flash('تم قبول طلب الختمة بنجاح', 'success')
         return jsonify({'success': True})
         
     except Exception as e:
         db.session.rollback()
+        print(f"Error approving khatma request: {e}")
         return jsonify({'success': False, 'message': str(e)}), 500
 
 # رفض طلب ختمة
@@ -1775,11 +1784,15 @@ def reject_khatma_request(request_id):
     khatma_req = KhatmaRequest.query.get_or_404(request_id)
     
     try:
-        khatma_req.status = 'مرفوض'
-        khatma_req.reviewed_by = current_user.id
-        khatma_req.reviewed_at = datetime.utcnow()
-        khatma_req.review_notes = request.form.get('notes', '')
+        # استخدام update بدلاً من تعديل الكائن لتجنب مشاكل IntegrityError
+        update_values = {
+            'status': 'مرفوض',
+            'reviewed_by': current_user.id,
+            'reviewed_at': datetime.utcnow(),
+            'review_notes': request.form.get('notes', '')
+        }
         
+        KhatmaRequest.query.filter_by(id=request_id).update(update_values)
         db.session.commit()
         
         # تسجيل النشاط
@@ -1787,18 +1800,22 @@ def reject_khatma_request(request_id):
                     f'تم رفض طلب ختمة للطالب: {khatma_req.student_name}')
         
         # إرسال إشعار للموظف
-        push_service.send_push_by_national_id(
-            khatma_req.employee.national_id,
-            'تحديث على طلب الختمة',
-            f'تم رفض طلب الختمة للطالب {khatma_req.student_name}',
-            '/employee/dashboard'
-        )
+        # نعيد جلب الموظف للتأكد من البيانات
+        employee = User.query.get(khatma_req.employee_id)
+        if employee:
+            push_service.send_push_by_national_id(
+                employee.national_id,
+                'تحديث على طلب الختمة',
+                f'تم رفض طلب الختمة للطالب {khatma_req.student_name}',
+                '/employee/dashboard'
+            )
         
         flash('تم رفض طلب الختمة', 'info')
         return jsonify({'success': True})
         
     except Exception as e:
         db.session.rollback()
+        print(f"Error rejecting khatma request: {e}")
         return jsonify({'success': False, 'message': str(e)}), 500
 
 # إرسال إشعار تجريبي (للمدير الحالي)
