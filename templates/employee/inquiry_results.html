@@ -187,6 +187,61 @@
         </div>
     </div>
 
+    <!-- طلبات تسجيل بيانات مجلس ختم القرآن -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card-islamic">
+                <div class="card-header">
+                    <i class="fas fa-book-quran ms-2"></i>
+                    حالة طلب تسجيل بيانات مجلس ختم القرآن
+                </div>
+                <div class="card-body">
+                    {% if khatma_requests %}
+                    <div class="table-responsive">
+                        <table class="table table-islamic">
+                            <thead>
+                                <tr>
+                                    <th>اسم الطالب</th>
+                                    <th>رقم الطالب</th>
+                                    <th>نوع الطالب</th>
+                                    <th>تاريخ الختمة</th>
+                                    <th>الرواية</th>
+                                    <th>الحالة</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for req in khatma_requests %}
+                                <tr>
+                                    <td>{{ req.student_name }}</td>
+                                    <td>{{ req.student_id or '-' }}</td>
+                                    <td>{{ req.student_type or '-' }}</td>
+                                    <td>{{ req.khatma_date.strftime('%Y/%m/%d') }}</td>
+                                    <td>{{ req.riwaya_type }}</td>
+                                    <td>
+                                        {% if req.status == 'قيد الانتظار' %}
+                                        <span class="badge badge-pending">{{ req.status }}</span>
+                                        {% elif req.status == 'مقبول' %}
+                                        <span class="badge badge-approved">{{ req.status }}</span>
+                                        {% else %}
+                                        <span class="badge badge-rejected">{{ req.status }}</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle ms-2"></i>
+                        لا توجد طلبات ختمة مسجلة
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- الحضور والغياب -->
     <div class="row mb-4">
         <div class="col-md-12">

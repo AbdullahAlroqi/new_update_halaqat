@@ -57,12 +57,14 @@ def inquiry():
         
         # جلب البيانات
         leaves = LeaveRequest.query.filter_by(employee_id=user.id).order_by(LeaveRequest.created_at.desc()).all()
+        khatma_requests = KhatmaRequest.query.filter_by(employee_id=user.id).order_by(KhatmaRequest.created_at.desc()).all()
         schedules = Schedule.query.filter_by(employee_id=user.id).all()
         attendance = Attendance.query.filter_by(employee_id=user.id).order_by(Attendance.date.desc()).limit(30).all()
         
         return render_template('employee/inquiry_results.html',
                              user=user,
                              leaves=leaves,
+                             khatma_requests=khatma_requests,
                              schedules=schedules,
                              attendance=attendance)
     
