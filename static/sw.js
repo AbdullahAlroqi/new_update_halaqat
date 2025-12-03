@@ -34,11 +34,13 @@ self.addEventListener('fetch', event => {
     event.respondWith(
         fetch(event.request)
             .then(response => {
-                // حفظ نسخة جديدة في الكاش
-                const responseClone = response.clone();
-                caches.open(CACHE_NAME).then(cache => {
-                    cache.put(event.request, responseClone);
-                });
+                // حفظ نسخة جديدة في الكاش فقط إذا كان الطلب GET
+                if (event.request.method === 'GET') {
+                    const responseClone = response.clone();
+                    caches.open(CACHE_NAME).then(cache => {
+                        cache.put(event.request, responseClone);
+                    });
+                }
                 return response;
             })
             .catch(() => {
