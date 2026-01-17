@@ -85,9 +85,10 @@
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
                             <div class="text-muted small text-uppercase mb-1">طلبات معلقة</div>
-                            <div class="h3 mb-0 text-warning fw-bold">{{ pending_leaves + pending_khatmas }}</div>
+                            <div class="h3 mb-0 text-warning fw-bold">{{ pending_leaves + pending_khatmas +
+                                pending_qaida_noor }}</div>
                             <small class="text-muted" style="font-size: 0.7rem;">
-                                {{ pending_leaves }} إجازة | {{ pending_khatmas }} ختمة
+                                {{ pending_leaves }} إجازة | {{ pending_khatmas }} ختمة | {{ pending_qaida_noor }} قاعدة
                             </small>
                         </div>
                         <div class="icon-circle bg-warning bg-opacity-10 text-warning p-3 rounded-circle">
@@ -159,6 +160,19 @@
                                 <span
                                     class="position-absolute top-0 start-0 translate-middle badge rounded-pill bg-danger">
                                     {{ pending_khatmas }}
+                                </span>
+                                {% endif %}
+                            </a>
+                        </div>
+                        <div class="col-md-4 col-sm-6">
+                            <a href="{{ url_for('admin.qaida_noor_requests') }}"
+                                class="btn btn-outline-info w-100 p-3 text-start position-relative"
+                                style="color: #0d6efd; border-color: #0d6efd;">
+                                <i class="fas fa-book-open ms-2"></i> طلبات قاعدة النور
+                                {% if pending_qaida_noor > 0 %}
+                                <span
+                                    class="position-absolute top-0 start-0 translate-middle badge rounded-pill bg-danger">
+                                    {{ pending_qaida_noor }}
                                 </span>
                                 {% endif %}
                             </a>

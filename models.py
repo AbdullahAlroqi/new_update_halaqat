@@ -265,6 +265,7 @@ class KhatmaRequest(db.Model):
     student_name = db.Column(db.String(100), nullable=False)
     student_type = db.Column(db.String(50))  # دائم، زائر، إلخ
     student_id = db.Column(db.String(20))  # رقم الطالب
+    nationality = db.Column(db.String(100))  # جنسية الطالب
     khatma_date = db.Column(db.Date, nullable=False)
     original_date = db.Column(db.Date)  # التاريخ الأصلي في حالة تغيير التاريخ
     riwaya_type = db.Column(db.String(100), nullable=False)  # نوع الرواية
@@ -281,6 +282,31 @@ class KhatmaRequest(db.Model):
     
     def __repr__(self):
         return f'<KhatmaRequest {self.student_name} - {self.khatma_date}>'
+
+# نموذج طلبات قاعدة النور
+class QaidaNoorRequest(db.Model):
+    __tablename__ = 'qaida_noor_requests'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    employee_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    student_name = db.Column(db.String(100), nullable=False)
+    student_type = db.Column(db.String(50))  # دائم، زائر، إلخ
+    student_id = db.Column(db.String(20))  # رقم الطالب
+    nationality = db.Column(db.String(100))  # جنسية الطالب
+    request_date = db.Column(db.Date, nullable=False)
+    additional_info = db.Column(db.Text)  # معلومات إضافية
+    status = db.Column(db.String(20), default=Status.PENDING)
+    reviewed_by = db.Column(db.Integer, db.ForeignKey('users.id'))
+    reviewed_at = db.Column(db.DateTime)
+    review_notes = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # العلاقات
+    employee = db.relationship('User', foreign_keys=[employee_id], backref=db.backref('qaida_noor_requests', cascade='all, delete-orphan'))
+    reviewer = db.relationship('User', foreign_keys=[reviewed_by])
+    
+    def __repr__(self):
+        return f'<QaidaNoorRequest {self.student_name} - {self.request_date}>'
 
 # نموذج اشتراكات الإشعارات Push
 class PushSubscription(db.Model):

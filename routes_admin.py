@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, send_file, make_response
 from flask_login import login_required, current_user
-from models import db, User, Role, LeaveRequest, LeaveType, Schedule, Attendance, SystemSettings, Notification, ActivityLog, AbsenceStatus, Certificate, KhatmaRequest
+from models import db, User, Role, LeaveRequest, LeaveType, Schedule, Attendance, SystemSettings, Notification, ActivityLog, AbsenceStatus, Certificate, KhatmaRequest, QaidaNoorRequest
 from datetime import datetime, timedelta
 from werkzeug.utils import secure_filename
 import openpyxl
@@ -57,6 +57,7 @@ def dashboard():
     ).count()
     pending_leaves = LeaveRequest.query.filter_by(status='قيد الانتظار').count()
     pending_khatmas = KhatmaRequest.query.filter_by(status='قيد الانتظار').count()
+    pending_qaida_noor = QaidaNoorRequest.query.filter_by(status='قيد الانتظار').count()
     
     # الحضور اليوم
     today = datetime.now().date()
@@ -68,14 +69,16 @@ def dashboard():
     # آخر طلبات الإجازات
     recent_leaves = LeaveRequest.query.order_by(LeaveRequest.created_at.desc()).limit(5).all()
     
-    # آخر طلبات الختمات
     recent_khatmas = KhatmaRequest.query.order_by(KhatmaRequest.created_at.desc()).limit(5).all()
+    
+    print(f"DEBUG: pending_qaida_noor={pending_qaida_noor}")
     
     return render_template('admin/dashboard.html',
                          total_employees=total_employees,
                          total_supervisors=total_supervisors,
                          pending_leaves=pending_leaves,
                          pending_khatmas=pending_khatmas,
+                         pending_qaida_noor=pending_qaida_noor,
                          present_today=present_today,
                          recent_leaves=recent_leaves,
                          recent_khatmas=recent_khatmas)
@@ -796,8 +799,96 @@ def report_leaves_pdf():
     return send_file(buffer, as_attachment=True, download_name=f'leaves_report_{datetime.now().strftime("%Y%m%d")}.pdf', mimetype='application/pdf')
 
 # طباعة تقرير الحضور PDF
-@admin_bp.route('/reports/attendance/pdf')
-@login_required  
+# إدارة طلبات ختمة قاعدة النور
+@admin_bp.route('/qaida-noor-requests')
+@login_required
+def qaida_noor_requests():
+    if not admin_required():
+        flash('ليس لديك صلاحية للوصول إلى هذه الصفحة', 'danger')
+        return redirect(url_for('index'))
+    
+    status = request.args.get('status')
+    
+    query = QaidaNoorRequest.query
+    
+    if status:
+        query = query.filter_by(status=status)
+        
+    requests = query.order_by(QaidaNoorRequest.created_at.desc()).all()
+    
+    return render_template('admin/qaida_noor_requests.html', requests=requests)
+
+# الموافقة على طلب ختمة قاعدة النور
+@admin_bp.route('/qaida-noor-request/<int:request_id>/approve', methods=['POST'])
+@login_required
+def approve_qaida_noor_request(request_id):
+    if not admin_required():
+        return jsonify({'success': False, 'message': 'ليس لديك صلاحية'}), 403
+    
+    req = QaidaNoorRequest.query.get_or_404(request_id)
+    
+    if req.status != 'قيد الانتظار':
+        return jsonify({'success': False, 'message': 'الطلب تمت معالجته مسبقاً'}), 400
+    
+    new_date = request.form.get('new_date')
+    notes = request.form.get('notes')
+    
+    if new_date:
+        req.request_date = datetime.strptime(new_date, '%Y-%m-%d').date()
+        
+    req.status = 'مقبول'
+    req.reviewed_by = current_user.id
+    req.reviewed_at = datetime.utcnow()
+    req.review_notes = notes
+    
+    # إشعار الموظف
+    push_service.send_to_user(
+        req.employee_id,
+        'تم قبول طلب الختمة',
+        f'تم قبول طلب ختمة قاعدة النور للطالب {req.student_name}',
+        '/employee/inquiry'
+    )
+    
+    db.session.commit()
+    
+    log_activity('قبول', 'طلب ختمة قاعدة النور', req.id, f'تم قبول الطلب للطالب {req.student_name}')
+    
+    return jsonify({'success': True})
+
+# رفض طلب ختمة قاعدة النور
+@admin_bp.route('/qaida-noor-request/<int:request_id>/reject', methods=['POST'])
+@login_required
+def reject_qaida_noor_request(request_id):
+    if not admin_required():
+        return jsonify({'success': False, 'message': 'ليس لديك صلاحية'}), 403
+    
+    req = QaidaNoorRequest.query.get_or_404(request_id)
+    
+    if req.status != 'قيد الانتظار':
+        return jsonify({'success': False, 'message': 'الطلب تمت معالجته مسبقاً'}), 400
+    
+    notes = request.form.get('notes')
+    if not notes:
+        return jsonify({'success': False, 'message': 'يجب ذكر سبب الرفض'}), 400
+        
+    req.status = 'مرفوض'
+    req.reviewed_by = current_user.id
+    req.reviewed_at = datetime.utcnow()
+    req.review_notes = notes
+    
+    # إشعار الموظف
+    push_service.send_to_user(
+        req.employee_id,
+        'تم رفض طلب الختمة',
+        f'تم رفض طلب ختمة قاعدة النور للطالب {req.student_name}',
+        '/employee/inquiry'
+    )
+    
+    db.session.commit()
+    
+    log_activity('رفض', 'طلب ختمة قاعدة النور', req.id, f'تم رفض الطلب للطالب {req.student_name}')
+    
+    return jsonify({'success': True})  
 def report_attendance_pdf():
     if not admin_required():
         flash('ليس لديك صلاحية للوصول إلى هذه الصفحة', 'danger')

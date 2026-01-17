@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card-islamic">
+                <div class="card-header bg-success text-white">
+                    <i class="fas fa-check-circle ms-2"></i>
+                    تم تقديم الطلب بنجاح
+                </div>
+                <div class="card-body text-center">
+                    <div class="mb-4">
+                        <i class="fas fa-check-circle text-success" style="font-size: 4rem;"></i>
+                    </div>
+
+                    <h3 class="text-success mb-4">تم تقديم طلب ختمة قاعدة النور بنجاح!</h3>
+
+                    <div class="alert alert-success">
+                        <p class="mb-0">
+                            <i class="fas fa-info-circle ms-2"></i>
+                            سيتم مراجعة طلبك من قبل الإدارة أو المشرف الرئيسي وسيتم إشعارك بالقرار قريباً.
+                        </p>
+                    </div>
+
+                    <div class="card mt-4">
+                        <div class="card-body text-end">
+                            <h5 class="card-title text-primary mb-3">
+                                <i class="fas fa-file-alt ms-2"></i>
+                                تفاصيل الطلب
+                            </h5>
+                            <table class="table table-borderless">
+                                <tr>
+                                    <th>اسم الموظف:</th>
+                                    <td>{{ user.name }}</td>
+                                </tr>
+                                <tr>
+                                    <th>اسم الطالب:</th>
+                                    <td>{{ request_data.student_name }}</td>
+                                </tr>
+                                <tr>
+                                    <th>تاريخ الختمة:</th>
+                                    <td>{{ request_data.request_date.strftime('%Y/%m/%d') }}</td>
+                                </tr>
+                                {% if request_data.additional_info %}
+                                <tr>
+                                    <th>معلومات إضافية:</th>
+                                    <td>{{ request_data.additional_info }}</td>
+                                </tr>
+                                {% endif %}
+                                <tr>
+                                    <th>الحالة:</th>
+                                    <td><span class="badge bg-warning">قيد الانتظار</span></td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="mt-4">
+                        <button class="btn btn-warning btn-lg" id="enableNotificationsBtn">
+                            <i class="fas fa-bell ms-1"></i>
+                            تفعيل الإشعارات لمتابعة الطلب
+                        </button>
+                    </div>
+
+                    <div class="mt-4">
+                        <a href="{{ url_for('index') }}" class="btn btn-islamic btn-lg">
+                            <i class="fas fa-home ms-1"></i>
+                            العودة للصفحة الرئيسية
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // حفظ رقم الهوية في localStorage
+    localStorage.setItem('emp_national_id', '{{ user.national_id }}');
+
+    // كود الإشعارات
+    document.getElementById('enableNotificationsBtn').addEventListener('click', function () {
+        if ('serviceWorker' in navigator && 'PushManager' in window) {
+            navigator.serviceWorker.register('/sw.js')
+                .then(registration => {
+                    return Notification.requestPermission().then(permission => {
+                        if (permission === 'granted') {
+                            return subscribeEmployeeToPush(registration);
+                        } else {
+                            alert('❌ تم رفض تفعيل الإشعارات');
+                        }
+                    });
+                })
+                .then(() => {
+                    alert('✅ تم تفعيل الإشعارات بنجاح! سيتم إشعارك عند تحديث طلبك');
+                    const btn = document.getElementById('enableNotificationsBtn');
+                    btn.classList.add('btn-success');
+                    btn.classList.remove('btn-warning');
+                    btn.innerHTML = '<i class="fas fa-check ms-1"></i> تم تفعيل الإشعارات';
+                    btn.disabled = true;
+                })
+                .catch(err => {
+                    console.error('Error enabling notifications:', err);
+                    alert('حدث خطأ في تفعيل الإشعارات');
+                });
+        } else {
+            alert('متصفحك لا يدعم الإشعارات');
+        }
+    });
+
+    function subscribeEmployeeToPush(registration) {
+        return fetch('/vapid-public-key')
+            .then(response => response.json())
+            .then(data => {
+                const publicKey = data.publicKey;
+                const applicationServerKey = urlBase64ToUint8Array(publicKey);
+
+                return registration.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: applicationServerKey
+                });
+            })
+            .then(subscription => {
+                const national_id = localStorage.getItem('emp_national_id');
+                return fetch('/subscribe', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        subscription: subscription,
+                        national_id: national_id
+                    })
+                });
+            })
+            .then(response => response.json());
+    }
+
+    function urlBase64ToUint8Array(base64String) {
+        const padding = '='.repeat((4 - base64String.length % 4) % 4);
+        const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+        const rawData = window.atob(base64);
+        const outputArray = new Uint8Array(rawData.length);
+        for (let i = 0; i < rawData.length; ++i) {
+            outputArray[i] = rawData.charCodeAt(i);
+        }
+        return outputArray;
+    }
+</script>
+{% endblock %}

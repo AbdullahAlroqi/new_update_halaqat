@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
-from models import db, User, Role, LeaveRequest, LeaveType, Schedule, Attendance, KhatmaRequest
+from models import db, User, Role, LeaveRequest, LeaveType, Schedule, Attendance, KhatmaRequest, QaidaNoorRequest
 from datetime import datetime, timedelta
 from werkzeug.utils import secure_filename
 import os
@@ -232,6 +232,7 @@ def khatma_request():
             student_name=student_name,
             student_type=student_type,
             student_id=student_id,
+            nationality=request.form.get('nationality'),
             khatma_date=khatma_date,
             riwaya_type=riwaya_type,
             additional_info=additional_info
@@ -251,3 +252,57 @@ def khatma_request():
         return render_template('employee/khatma_request_success.html', user=user, request_data=khatma_req)
     
     return render_template('employee/khatma_request.html')
+
+# طلب ختمة قاعدة النور (بدون تسجيل دخول)
+@employee_bp.route('/qaida-noor-request', methods=['GET', 'POST'])
+def qaida_noor_request():
+    if request.method == 'POST':
+        national_id = request.form.get('national_id')
+        if not national_id:
+            flash('الرجاء إدخال رقم الهوية', 'danger')
+            return redirect(url_for('employee.qaida_noor_request'))
+        
+        user = User.query.filter_by(national_id=national_id, role=Role.EMPLOYEE).first()
+        if not user:
+            flash('رقم الهوية غير صحيح', 'danger')
+            return redirect(url_for('employee.qaida_noor_request'))
+        
+        student_name = request.form.get('student_name')
+        student_type = request.form.get('student_type')
+        student_id = request.form.get('student_id')
+        request_date = datetime.strptime(request.form.get('request_date'), '%Y-%m-%d').date()
+        additional_info = request.form.get('additional_info')
+        
+        # التحقق من المدة الزمنية بين الطلبات (ساعة واحدة)
+        last_request = QaidaNoorRequest.query.filter_by(employee_id=user.id).order_by(QaidaNoorRequest.created_at.desc()).first()
+        if last_request and (datetime.utcnow() - last_request.created_at) < timedelta(hours=1):
+            remaining_time = timedelta(hours=1) - (datetime.utcnow() - last_request.created_at)
+            minutes = int(remaining_time.total_seconds() / 60)
+            flash(f'عذراً، لا يمكنك تقديم طلب جديد إلا بعد مرور ساعة. يرجى الانتظار {minutes} دقيقة.', 'warning')
+            return redirect(url_for('employee.qaida_noor_request'))
+        
+        # إنشاء الطلب
+        qaida_req = QaidaNoorRequest(
+            employee_id=user.id,
+            student_name=student_name,
+            student_type=student_type,
+            student_id=student_id,
+            nationality=request.form.get('nationality'),
+            request_date=request_date,
+            additional_info=additional_info
+        )
+        
+        db.session.add(qaida_req)
+        db.session.commit()
+        
+        # إرسال إشعار للإدارة والمشرفين الرئيسيين
+        push_service.send_to_admins_and_supervisors(
+            'طلب ختمة قاعدة النور جديد',
+            f'طلب ختمة قاعدة النور جديد من {user.name} للطالب {student_name}',
+            '/admin/qaida-noor-requests'
+        )
+        
+        flash('تم تقديم طلب ختمة قاعدة النور بنجاح', 'success')
+        return render_template('employee/qaida_noor_request_success.html', user=user, request_data=qaida_req)
+    
+    return render_template('employee/qaida_noor_request.html')
