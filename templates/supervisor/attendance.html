@@ -12,21 +12,58 @@
             </h2>
         </div>
     </div>
-    
+
     <div class="row">
         <div class="col-12">
             <div class="card-islamic">
                 <div class="card-body">
-                    {% if subordinates %}
-                    <form method="POST" action="{{ url_for('supervisor.attendance') }}">
-                        <div class="row mb-4">
-                            <div class="col-md-4">
-                                <label for="date" class="form-label">التاريخ</label>
-                                <input type="date" id="date" name="date" class="form-control" 
-                                       value="{{ today }}" required>
+                    <!-- فلاتر البحث -->
+                    <div class="row mb-4">
+                        <div class="col-md-3">
+                            <label for="date" class="form-label">التاريخ المختارة للتسجيل</label>
+                            <input type="date" id="attendance_date" class="form-control" value="{{ today }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="name_search" class="form-label">اسم المعلم</label>
+                            <input type="text" name="name" id="name_search" class="form-control"
+                                placeholder="بحث بالاسم..." value="{{ name_filter }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="period_filter" class="form-label">الفترة</label>
+                            <select name="period" id="period_filter" class="form-select">
+                                <option value="">كل الفترات</option>
+                                {% for p in periods %}
+                                <option value="{{ p }}" {% if period_filter==p %}selected{% endif %}>{{ p }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3 d-flex align-items-end">
+                            <div class="btn-group w-100">
+                                <button type="button" onclick="applyFilters()" class="btn btn-primary">
+                                    <i class="fas fa-search ms-1"></i> بحث
+                                </button>
+                                <a href="{{ url_for('supervisor.attendance') }}" class="btn btn-secondary">
+                                    <i class="fas fa-undo ms-1"></i> إعادة ضبط
+                                </a>
                             </div>
                         </div>
-                        
+                    </div>
+
+                    <!-- نموذج مخفي للفلاتر (GET) -->
+                    <form id="getFilterForm" method="GET" action="{{ url_for('supervisor.attendance') }}"
+                        class="d-none">
+                        <input type="hidden" name="name" id="hidden_name">
+                        <input type="hidden" name="period" id="hidden_period">
+                    </form>
+
+                    <hr class="my-4">
+
+                    {% if subordinates %}
+                    <form method="POST"
+                        action="{{ url_for('supervisor.attendance', name=name_filter, period=period_filter) }}"
+                        id="attendanceForm">
+                        <input type="hidden" name="date" id="final_date" value="{{ today }}">
+
                         <div class="table-responsive">
                             <table class="table table-islamic">
                                 <thead>
@@ -49,7 +86,8 @@
                                         <td>
                                             {% if emp.period or emp.work_time %}
                                             <small>
-                                                {% if emp.period %}<span class="badge bg-info">{{ emp.period }}</span>{% endif %}
+                                                {% if emp.period %}<span class="badge bg-info">{{ emp.period }}</span>{%
+                                                endif %}
                                                 {% if emp.work_time %}<br>{{ emp.work_time }}{% endif %}
                                             </small>
                                             {% else %}
@@ -57,33 +95,32 @@
                                             {% endif %}
                                         </td>
                                         <td>
-                                            <select name="status_{{ emp.id }}" class="form-select">
+                                            <select name="status_{{ emp.id }}" class="form-select status-select">
                                                 <option value="">اختر الحالة</option>
-                                                <option value="حاضر" 
-                                                    {% if today_attendance.get(emp.id) and today_attendance[emp.id].status == 'حاضر' %}selected{% endif %}>
+                                                <option value="حاضر" {% if today_attendance.get(emp.id) and
+                                                    today_attendance[emp.id].status=='حاضر' %}selected{% endif %}>
                                                     حاضر
                                                 </option>
-                                                <option value="غائب"
-                                                    {% if today_attendance.get(emp.id) and today_attendance[emp.id].status == 'غائب' %}selected{% endif %}>
-                                                    غائب
+                                                {% for status in absence_statuses %}
+                                                <option value="{{ status.id }}" {% if today_attendance.get(emp.id) and
+                                                    (today_attendance[emp.id].absence_status_id==status.id or
+                                                    today_attendance[emp.id].status==status.name) %}selected{% endif %}>
+                                                    {{ status.name }}
                                                 </option>
-                                                <option value="إجازة"
-                                                    {% if today_attendance.get(emp.id) and today_attendance[emp.id].status == 'إجازة' %}selected{% endif %}>
-                                                    إجازة
-                                                </option>
+                                                {% endfor %}
                                             </select>
                                         </td>
                                         <td>
-                                            <input type="text" name="notes_{{ emp.id }}" class="form-control" 
-                                                   placeholder="ملاحظات (اختياري)"
-                                                   value="{% if today_attendance.get(emp.id) %}{{ today_attendance[emp.id].notes or '' }}{% endif %}">
+                                            <input type="text" name="notes_{{ emp.id }}" class="form-control"
+                                                placeholder="ملاحظات (اختياري)"
+                                                value="{% if today_attendance.get(emp.id) %}{{ today_attendance[emp.id].notes or '' }}{% endif %}">
                                         </td>
                                     </tr>
                                     {% endfor %}
                                 </tbody>
                             </table>
                         </div>
-                        
+
                         <div class="text-center mt-4">
                             <button type="submit" class="btn btn-islamic btn-lg">
                                 <i class="fas fa-save ms-1"></i>
@@ -94,7 +131,10 @@
                     {% else %}
                     <div class="alert alert-warning">
                         <i class="fas fa-exclamation-triangle ms-2"></i>
-                        لا يوجد موظفون مسندون إليك
+                        لا يوجد موظفون مسندون إليك او لا توجد نتائج للبحث
+                        <br>
+                        <a href="{{ url_for('supervisor.attendance') }}" class="btn btn-sm btn-warning mt-2">عرض جميع
+                            المعلمين</a>
                     </div>
                     {% endif %}
                 </div>
@@ -102,4 +142,24 @@
         </div>
     </div>
 </div>
+
+<script>
+    function applyFilters() {
+        document.getElementById('hidden_name').value = document.getElementById('name_search').value;
+        document.getElementById('hidden_period').value = document.getElementById('period_filter').value;
+        document.getElementById('getFilterForm').submit();
+    }
+
+    // مزامنة التاريخ عند تغيير القيمة في الواجهة
+    document.getElementById('attendance_date').addEventListener('change', function () {
+        document.getElementById('final_date').value = this.value;
+    });
+
+    // تفعيل البحث عند الضغط على Enter
+    document.getElementById('name_search').addEventListener('keypress', function (e) {
+        if (e.key === 'Enter') {
+            applyFilters();
+        }
+    });
+</script>
 {% endblock %}

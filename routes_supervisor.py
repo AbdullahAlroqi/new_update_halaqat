@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
-from models import db, User, Role, LeaveRequest, Schedule, Attendance, Notification, KhatmaRequest
+from models import db, User, Role, LeaveRequest, Schedule, Attendance, Notification, KhatmaRequest, AbsenceStatus
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 import push_service
@@ -252,10 +252,26 @@ def attendance():
         flash('ليس لديك صلاحية للوصول إلى هذه الصفحة', 'danger')
         return redirect(url_for('index'))
     
-    subordinates = User.query.filter_by(supervisor_id=current_user.id, role=Role.EMPLOYEE).all()
+    # الفلاتر
+    name_filter = request.args.get('name', '')
+    period_filter = request.args.get('period', '')
+    
+    query = User.query.filter_by(supervisor_id=current_user.id, role=Role.EMPLOYEE)
+    
+    if name_filter:
+        query = query.filter(User.name.like(f'%{name_filter}%'))
+    if period_filter:
+        query = query.filter_by(period=period_filter)
+    
+    subordinates = query.order_by(User.name).all()
     
     if request.method == 'POST':
-        date = datetime.strptime(request.form.get('date'), '%Y-%m-%d').date()
+        date_str = request.form.get('date')
+        if not date_str:
+             flash('الرجاء اختيار التاريخ', 'danger')
+             return redirect(url_for('supervisor.attendance'))
+             
+        date = datetime.strptime(date_str, '%Y-%m-%d').date()
         
         for emp in subordinates:
             status = request.form.get(f'status_{emp.id}')
@@ -264,18 +280,34 @@ def attendance():
             if not status:
                 continue
             
+            # محاولة جلب ID حالة الغياب إذا كان المختار ليس "حاضر" وله ID
+            absence_status_id = None
+            if status != 'حاضر':
+                # نتحقق إذا كان المرسل هو ID (رقمي)
+                if status.isdigit():
+                    absence_status_id = int(status)
+                    # جلب الاسم للعرض في عمود status بجدول Attendance (للتوافق القديم)
+                    abs_status_obj = AbsenceStatus.query.get(absence_status_id)
+                    status_name = abs_status_obj.name if abs_status_obj else status
+                else:
+                    status_name = status
+            else:
+                status_name = status
+
             # التحقق من وجود سجل حضور لهذا اليوم
             existing = Attendance.query.filter_by(employee_id=emp.id, date=date).first()
             
             if existing:
-                existing.status = status
+                existing.status = status_name
+                existing.absence_status_id = absence_status_id
                 existing.notes = notes
                 existing.recorded_by = current_user.id
             else:
                 attendance_record = Attendance(
                     employee_id=emp.id,
                     date=date,
-                    status=status,
+                    status=status_name,
+                    absence_status_id=absence_status_id,
                     notes=notes,
                     recorded_by=current_user.id
                 )
@@ -283,7 +315,8 @@ def attendance():
         
         db.session.commit()
         flash('تم تسجيل الحضور والغياب بنجاح', 'success')
-        return redirect(url_for('supervisor.attendance'))
+        # الحفاظ على الفلاتر عند إعادة التوجيه
+        return redirect(url_for('supervisor.attendance', name=name_filter, period=period_filter))
     
     # جلب سجلات اليوم
     today = datetime.now().date()
@@ -292,10 +325,21 @@ def attendance():
         record = Attendance.query.filter_by(employee_id=emp.id, date=today).first()
         today_attendance[emp.id] = record
     
+    # جلب حالات الغياب النشطة
+    absence_statuses = AbsenceStatus.query.filter_by(is_active=True).all()
+    
+    # جلب فترات المعلمين المسندين لهذا المشرف
+    periods = db.session.query(User.period).filter_by(supervisor_id=current_user.id, role=Role.EMPLOYEE).distinct().all()
+    periods = [p[0] for p in periods if p[0]]
+    
     return render_template('supervisor/attendance.html', 
                          subordinates=subordinates,
                          today_attendance=today_attendance,
-                         today=today)
+                         today=today,
+                         absence_statuses=absence_statuses,
+                         periods=periods,
+                         name_filter=name_filter,
+                         period_filter=period_filter)
 
 # عرض سجل الحضور
 @supervisor_bp.route('/attendance-records')
