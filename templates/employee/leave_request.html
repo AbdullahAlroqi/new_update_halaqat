@@ -172,8 +172,8 @@
         }
     }
 
-    // تعيين الحد الأدنى للتاريخ
-    document.getElementById('start_date').min = new Date().toISOString().split('T')[0];
-    document.getElementById('end_date').min = new Date().toISOString().split('T')[0];
+    // السماح برفع إجازة بتاريخ قديم (تم تعطيل الحد الأدنى للتاريخ)
+    // document.getElementById('start_date').min = new Date().toISOString().split('T')[0];
+    // document.getElementById('end_date').min = new Date().toISOString().split('T')[0];
 </script>
 {% endblock %}
