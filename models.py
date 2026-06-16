@@ -68,6 +68,7 @@ class User(UserMixin, db.Model):
     # العلاقات
     schedules = db.relationship('Schedule', backref='employee', lazy='dynamic', foreign_keys='Schedule.employee_id')
     leave_requests = db.relationship('LeaveRequest', backref='employee', lazy='dynamic', foreign_keys='LeaveRequest.employee_id')
+    leave_balance_sources = db.relationship('LeaveBalanceSource', backref='employee', lazy='dynamic', foreign_keys='LeaveBalanceSource.employee_id')
     attendance_records = db.relationship('Attendance', backref='employee', lazy='dynamic', foreign_keys='Attendance.employee_id')
     
     def set_password(self, password):
@@ -140,6 +141,29 @@ class LeaveRequest(db.Model):
     def __repr__(self):
         return f'<LeaveRequest {self.employee_id} - {self.leave_type_id}>'
 
+# نموذج مصادر رصيد الإجازات
+class LeaveBalanceSource(db.Model):
+    __tablename__ = 'leave_balance_sources'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    employee_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+    name = db.Column(db.String(150), nullable=False)
+    balance_type = db.Column(db.String(30), default='extra')  # annual, extra, carryover, legacy
+    initial_days = db.Column(db.Integer, nullable=False, default=0)
+    remaining_days = db.Column(db.Integer, nullable=False, default=0)
+    year = db.Column(db.Integer)
+    is_active = db.Column(db.Boolean, default=True, index=True)
+    notes = db.Column(db.Text)
+    hidden_at = db.Column(db.DateTime)
+    created_by = db.Column(db.Integer, db.ForeignKey('users.id'))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    creator = db.relationship('User', foreign_keys=[created_by])
+    
+    def __repr__(self):
+        return f'<LeaveBalanceSource {self.employee_id} - {self.name}>'
+
 # نموذج الحضور والغياب
 class Attendance(db.Model):
     __tablename__ = 'attendance'
@@ -172,6 +196,11 @@ class SystemSettings(db.Model):
     accent_color = db.Column(db.String(20), default='#323232')
     attachment_retention_days = db.Column(db.Integer, default=60)
     logo_path = db.Column(db.String(500))
+    annual_leave_balance = db.Column(db.Integer, default=21)
+    leave_renewal_month = db.Column(db.Integer, default=1)
+    leave_renewal_day = db.Column(db.Integer, default=1)
+    carryover_leave_balance = db.Column(db.Boolean, default=False)
+    last_leave_renewal_year = db.Column(db.Integer)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     def __repr__(self):

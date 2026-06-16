@@ -1,6 +1,17 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, send_file, make_response
 from flask_login import login_required, current_user
-from models import db, User, Role, LeaveRequest, LeaveType, Schedule, Attendance, SystemSettings, Notification, ActivityLog, AbsenceStatus, Certificate, KhatmaRequest, QaidaNoorRequest
+from models import db, User, Role, LeaveRequest, LeaveType, Schedule, Attendance, SystemSettings, Notification, ActivityLog, AbsenceStatus, Certificate, KhatmaRequest, QaidaNoorRequest, LeaveBalanceSource
+from leave_balance_service import (
+    add_extra_balance,
+    deduct_leave_balance,
+    ensure_all_employee_leave_sources,
+    get_active_sources,
+    get_leave_settings,
+    get_renewal_date,
+    hide_balance_source,
+    process_due_leave_renewal,
+    set_employee_annual_balance,
+)
 from datetime import datetime, timedelta
 from werkzeug.utils import secure_filename
 import openpyxl
@@ -49,6 +60,9 @@ def dashboard():
     if not admin_required():
         flash('ليس لديك صلاحية للوصول إلى هذه الصفحة', 'danger')
         return redirect(url_for('index'))
+    
+    if process_due_leave_renewal():
+        db.session.commit()
     
     # إحصائيات عامة
     total_employees = User.query.filter_by(role=Role.EMPLOYEE).count()
@@ -1024,6 +1038,9 @@ def leave_requests():
         flash('ليس لديك صلاحية للوصول إلى هذه الصفحة', 'danger')
         return redirect(url_for('index'))
     
+    if process_due_leave_renewal():
+        db.session.commit()
+    
     # جلب جميع طلبات الإجازات
     status_filter = request.args.get('status', 'قيد الانتظار')
     
@@ -1044,6 +1061,9 @@ def review_leave(request_id):
         flash('ليس لديك صلاحية لهذه العملية', 'danger')
         return redirect(url_for('index'))
     
+    if process_due_leave_renewal():
+        db.session.commit()
+    
     leave_request = LeaveRequest.query.get_or_404(request_id)
     action = request.form.get('action')
     notes = request.form.get('notes', '')
@@ -1057,7 +1077,7 @@ def review_leave(request_id):
         # خصم من رصيد الإجازات إذا كان نوع الإجازة يتطلب ذلك
         if leave_request.leave_type.deduct_from_balance:
             employee = leave_request.employee
-            employee.leave_balance -= leave_request.days_count
+            deduct_leave_balance(employee, leave_request.days_count)
             
             # تسجيل النشاط
             log_activity('خصم رصيد إجازة', 'user', employee.id, 
@@ -1754,8 +1774,67 @@ def leave_balance_management():
         flash('ليس لديك صلاحية للوصول إلى هذه الصفحة', 'danger')
         return redirect(url_for('index'))
     
-    employees = User.query.filter_by(role=Role.EMPLOYEE).order_by(User.name).all()
-    return render_template('admin/leave_balance.html', employees=employees)
+    if process_due_leave_renewal():
+        db.session.commit()
+        flash('تم تحديث أرصدة الإجازات السنوية تلقائياً حسب تاريخ التجديد', 'success')
+    else:
+        ensure_all_employee_leave_sources()
+        db.session.commit()
+    
+    settings = get_leave_settings()
+    search_query = (request.args.get('search') or '').strip()
+    department_filter = (request.args.get('department') or '').strip()
+    sort_by = request.args.get('sort', 'name_asc')
+    
+    departments = db.session.query(User.department).filter(
+        User.role == Role.EMPLOYEE,
+        User.department.isnot(None),
+        User.department != ''
+    ).distinct().order_by(User.department.asc()).all()
+    departments = [department[0] for department in departments]
+    
+    employees_query = User.query.filter_by(role=Role.EMPLOYEE)
+    
+    if search_query:
+        like_query = f'%{search_query}%'
+        employees_query = employees_query.filter(
+            or_(
+                User.name.ilike(like_query),
+                User.national_id.ilike(like_query)
+            )
+        )
+    
+    if department_filter:
+        employees_query = employees_query.filter(User.department == department_filter)
+    
+    sort_options = {
+        'name_asc': (User.name.asc(),),
+        'name_desc': (User.name.desc(),),
+        'national_id_asc': (User.national_id.asc(),),
+        'national_id_desc': (User.national_id.desc(),),
+        'department_asc': (User.department.asc(), User.name.asc()),
+        'balance_desc': (User.leave_balance.desc(), User.name.asc()),
+        'balance_asc': (User.leave_balance.asc(), User.name.asc()),
+    }
+    employees = employees_query.order_by(*sort_options.get(sort_by, sort_options['name_asc'])).all()
+    sources_by_employee = {
+        employee.id: get_active_sources(employee.id)
+        for employee in employees
+    }
+    renewal_date = get_renewal_date(settings)
+    
+    return render_template(
+        'admin/leave_balance.html',
+        employees=employees,
+        sources_by_employee=sources_by_employee,
+        settings=settings,
+        renewal_date=renewal_date,
+        departments=departments,
+        search_query=search_query,
+        department_filter=department_filter,
+        sort_by=sort_by,
+        has_active_filters=bool(search_query or department_filter)
+    )
 
 # تحديث رصيد الإجازات
 @admin_bp.route('/leave_balance/update/<int:user_id>', methods=['POST'])
@@ -1765,30 +1844,159 @@ def update_leave_balance(user_id):
         return jsonify({'success': False, 'message': 'غير مصرح'}), 403
     
     user = User.query.get_or_404(user_id)
+    if user.role != Role.EMPLOYEE:
+        return jsonify({'success': False, 'message': 'يمكن تعديل رصيد المعلمين فقط'}), 400
     
     try:
         new_balance = int(request.json.get('balance', 0))
         if new_balance < 0:
             return jsonify({'success': False, 'message': 'الرصيد لا يمكن أن يكون سالباً'}), 400
         
-        old_balance = user.leave_balance
-        user.leave_balance = new_balance
+        old_balance, total_balance = set_employee_annual_balance(user, new_balance, current_user.id)
         db.session.commit()
         
         # تسجيل النشاط
         log_activity('تحديث رصيد إجازة', 'user', user_id, 
-                    f'تم تحديث رصيد إجازة {user.name} من {old_balance} إلى {new_balance}')
+                    f'تم تحديث الرصيد الأساسي لإجازة {user.name} من {old_balance} إلى {new_balance}')
         
         return jsonify({
             'success': True,
             'message': 'تم تحديث الرصيد بنجاح',
-            'new_balance': new_balance
+            'new_balance': total_balance,
+            'annual_balance': new_balance
         })
     except ValueError:
         return jsonify({'success': False, 'message': 'قيمة غير صحيحة'}), 400
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': 'حدث خطأ أثناء تحديث الرصيد'}), 500
+
+# تحديث إعدادات رصيد الإجازات السنوية
+@admin_bp.route('/leave_balance/settings', methods=['POST'])
+@login_required
+def update_leave_balance_settings():
+    if not admin_required():
+        flash('ليس لديك صلاحية لهذه العملية', 'danger')
+        return redirect(url_for('index'))
+    
+    settings = get_leave_settings()
+    
+    try:
+        annual_balance = request.form.get('annual_leave_balance', type=int)
+        renewal_date_value = request.form.get('renewal_date')
+        
+        if annual_balance is None or annual_balance < 0:
+            flash('رصيد الإجازة السنوي غير صحيح', 'danger')
+            return redirect(url_for('admin.leave_balance_management'))
+        
+        renewal_date = datetime.strptime(renewal_date_value, '%Y-%m-%d').date()
+        
+        settings.annual_leave_balance = annual_balance
+        settings.leave_renewal_month = renewal_date.month
+        settings.leave_renewal_day = renewal_date.day
+        settings.carryover_leave_balance = request.form.get('carryover_leave_balance') == 'on'
+        
+        db.session.commit()
+        log_activity(
+            'تحديث إعدادات رصيد الإجازات',
+            'system_settings',
+            settings.id,
+            f'تم ضبط الرصيد السنوي على {annual_balance} يوم وتاريخ التجديد {settings.leave_renewal_month}/{settings.leave_renewal_day}'
+        )
+        flash('تم حفظ إعدادات رصيد الإجازات بنجاح', 'success')
+    except ValueError:
+        db.session.rollback()
+        flash('تاريخ التجديد غير صحيح', 'danger')
+    except Exception:
+        db.session.rollback()
+        flash('حدث خطأ أثناء حفظ إعدادات رصيد الإجازات', 'danger')
+    
+    return redirect(url_for('admin.leave_balance_management'))
+
+# تطبيق التجديد السنوي المستحق
+@admin_bp.route('/leave_balance/renewal/run', methods=['POST'])
+@login_required
+def run_leave_balance_renewal():
+    if not admin_required():
+        flash('ليس لديك صلاحية لهذه العملية', 'danger')
+        return redirect(url_for('index'))
+    
+    if process_due_leave_renewal():
+        db.session.commit()
+        log_activity('تجديد أرصدة الإجازات', 'leave_balance', None, 'تم تطبيق التجديد السنوي المستحق')
+        flash('تم تطبيق التجديد السنوي المستحق بنجاح', 'success')
+    else:
+        db.session.rollback()
+        flash('لا يوجد تجديد سنوي مستحق حالياً أو تم تطبيقه لهذه السنة', 'info')
+    
+    return redirect(url_for('admin.leave_balance_management'))
+
+# إضافة رصيد إضافي لموظف
+@admin_bp.route('/leave_balance/extra/add/<int:user_id>', methods=['POST'])
+@login_required
+def add_leave_balance_extra(user_id):
+    if not admin_required():
+        flash('ليس لديك صلاحية لهذه العملية', 'danger')
+        return redirect(url_for('index'))
+    
+    user = User.query.get_or_404(user_id)
+    
+    if user.role != Role.EMPLOYEE:
+        flash('يمكن إضافة الرصيد للمعلمين فقط', 'warning')
+        return redirect(url_for('admin.leave_balance_management'))
+    
+    try:
+        name = (request.form.get('name') or '').strip()
+        days = request.form.get('days', type=int)
+        
+        if not name:
+            flash('اسم الرصيد الإضافي مطلوب', 'danger')
+            return redirect(url_for('admin.leave_balance_management'))
+        if days is None or days <= 0:
+            flash('عدد الأيام يجب أن يكون أكبر من صفر', 'danger')
+            return redirect(url_for('admin.leave_balance_management'))
+        
+        source = add_extra_balance(user, name, days, current_user.id)
+        db.session.commit()
+        
+        log_activity('إضافة رصيد إجازة إضافي', 'leave_balance', source.id, 
+                    f'تم إضافة {days} يوم ({name}) للموظف {user.name}')
+        flash('تم إضافة الرصيد الإضافي بنجاح', 'success')
+    except Exception:
+        db.session.rollback()
+        flash('حدث خطأ أثناء إضافة الرصيد الإضافي', 'danger')
+    
+    return redirect(url_for('admin.leave_balance_management'))
+
+# حذف/إخفاء رصيد إضافي
+@admin_bp.route('/leave_balance/extra/delete/<int:source_id>', methods=['POST'])
+@login_required
+def delete_leave_balance_extra(source_id):
+    if not admin_required():
+        flash('ليس لديك صلاحية لهذه العملية', 'danger')
+        return redirect(url_for('index'))
+    
+    source = LeaveBalanceSource.query.get_or_404(source_id)
+    
+    if source.balance_type == 'annual':
+        flash('لا يمكن حذف الرصيد الأساسي من هنا، يمكن تعديله فقط', 'warning')
+        return redirect(url_for('admin.leave_balance_management'))
+    
+    try:
+        employee_name = source.employee.name
+        source_name = source.name
+        remaining_days = source.remaining_days
+        hide_balance_source(source)
+        db.session.commit()
+        
+        log_activity('حذف رصيد إجازة إضافي', 'leave_balance', source.id, 
+                    f'تم إخفاء {remaining_days} يوم ({source_name}) للموظف {employee_name}')
+        flash('تم حذف الرصيد الإضافي من الرصيد النشط', 'success')
+    except Exception:
+        db.session.rollback()
+        flash('حدث خطأ أثناء حذف الرصيد الإضافي', 'danger')
+    
+    return redirect(url_for('admin.leave_balance_management'))
 
 # إدارة طلبات الختمة
 @admin_bp.route('/khatma-requests')

@@ -1,12 +1,17 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
 from models import db, User, Role, LeaveRequest, LeaveType, Schedule, Attendance, KhatmaRequest, QaidaNoorRequest
+from leave_balance_service import process_due_leave_renewal
 from datetime import datetime, timedelta
 from werkzeug.utils import secure_filename
 import os
 import push_service
 
 employee_bp = Blueprint('employee', __name__, url_prefix='/employee')
+
+def apply_due_leave_renewal():
+    if process_due_leave_renewal():
+        db.session.commit()
 
 # لوحة تحكم الموظف
 @employee_bp.route('/dashboard')
@@ -15,6 +20,8 @@ def dashboard():
     if current_user.role != Role.EMPLOYEE:
         flash('ليس لديك صلاحية للوصول إلى هذه الصفحة', 'danger')
         return redirect(url_for('index'))
+    
+    apply_due_leave_renewal()
     
     # إحصائيات
     total_leaves = LeaveRequest.query.filter_by(employee_id=current_user.id).count()
@@ -47,6 +54,8 @@ def dashboard():
 # الاستعلام عن البيانات برقم الهوية
 @employee_bp.route('/inquiry', methods=['GET', 'POST'])
 def inquiry():
+    apply_due_leave_renewal()
+    
     if request.method == 'POST':
         national_id = request.form.get('national_id')
         user = User.query.filter_by(national_id=national_id, role=Role.EMPLOYEE).first()
@@ -73,6 +82,8 @@ def inquiry():
 # طلب إجازة (بدون تسجيل دخول)
 @employee_bp.route('/leave-request', methods=['GET', 'POST'])
 def leave_request():
+    apply_due_leave_renewal()
+    
     leave_types = LeaveType.query.filter_by(is_active=True).all()
     
     # التحقق من رقم الهوية في حالة POST
